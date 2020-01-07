@@ -1,0 +1,30 @@
+{
+  "name": "TULaserTag-Server",
+  "version": "1.0.0",
+  "description": "Server Side Laser Tag system",
+  "main": "db.js",
+  "dependencies": {
+    "blipp": "4.0.1",
+    "@hapi/hapi": "^18.4.0",
+    "@hapi/joi": "17.0.0",
+    "hapi-pino": "^6.3.0",
+    "knex": "^0.20.2",
+    "objection": "^1.6.11",
+    "pg": "^7.12.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/canthony224/TULaserTag-Server.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/canthony224/TULaserTag-Server/issues"
+  },
+  "homepage": "https://github.com/canthony224/TULaserTag-Server#readme"
+}
