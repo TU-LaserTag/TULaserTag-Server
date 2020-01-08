@@ -18,9 +18,9 @@ class Game extends Model {
                     from: 'game.id',
                     through: {
                         from: 'individual.game_id',
-                        to: 'individual.player_id'
+                        to: 'individual.player_username'
                     },
-                    to: 'player.id'
+                    to: 'player.username'
                 }
             },
 
@@ -31,9 +31,9 @@ class Game extends Model {
                     from: 'game.id',
                     through: {
                         from: 'stats.game_id',
-                        to: 'stats.player_id'
+                        to: 'stats.player_username'
                     },
-                    to: 'player.id'
+                    to: 'player.username'
                 }
             },
 
@@ -46,7 +46,7 @@ class Game extends Model {
                         from: 'contest.game_id',
                         to: 'contest.team_id'
                     },
-                    to: 'team_id'
+                    to: 'team.id'
                 }
             }
         }

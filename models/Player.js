@@ -9,16 +9,15 @@ class Player extends Model {
     static get relationMappings() {
         const Team = require('./Team');
         const Game = require('./Game');
-        const Stats = require('./Stats');
 
         return {
             games: {
                 relation: Model.ManyToManyRelation,
                 modelClass: Game,
                 join: {
-                    from: 'player.id',
+                    from: 'player.username',
                     through: {
-                        from: 'stats.player_id',
+                        from: 'stats.player_username',
                         to: 'stats.game_id',
                     },
                     to: 'game.id'
@@ -29,9 +28,9 @@ class Player extends Model {
                 relation: Model.ManyToManyRelation,
                 modelClass: Game,
                 join: {
-                    from: 'player.id',
+                    from: 'player.username',
                     through: {
-                        from: 'individual.player_id',
+                        from: 'individual.player_username',
                         to: 'individual.game_id'
                     },
                     to: 'game.id'
@@ -42,12 +41,12 @@ class Player extends Model {
                 relation: Model.ManyToManyRelation,
                 modelClass: Team,
                 join: {
-                    from: 'player.id',
+                    from: 'player.username',
                     through: {
-                        from: 'assignment.player_id',
+                        from: 'assignment.player_username',
                         to: 'assignment.team_id'
                     },
-                    to: team.id
+                    to: 'team.id'
                 }
             }
         }

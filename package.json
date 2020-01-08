@@ -4,13 +4,13 @@
   "description": "Server Side Laser Tag system",
   "main": "db.js",
   "dependencies": {
-    "blipp": "4.0.1",
+    "blipp": "^4.0.1",
     "@hapi/hapi": "^18.4.0",
-    "@hapi/joi": "17.0.0",
+    "@hapi/joi": "^17.0.0",
     "hapi-pino": "^6.3.0",
-    "knex": "^0.20.2",
-    "objection": "^1.6.11",
-    "pg": "^7.12.1"
+    "knex": "^0.20.7",
+    "objection": "^2.0.10",
+    "pg": "^7.17.0"
   },
   "devDependencies": {},
   "scripts": {

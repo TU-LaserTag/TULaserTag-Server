@@ -31,9 +31,9 @@ class Team extends Model {
                     from: 'team.id',
                     through: {
                         from: 'assignment.team_id',
-                        to: 'assignment.player_id'
+                        to: 'assignment.player_username'
                     },
-                    to: 'player.id'
+                    to: 'player.username'
                 }
             }
         }
