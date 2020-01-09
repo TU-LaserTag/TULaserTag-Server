@@ -9,6 +9,8 @@ class Game extends Model {
     static get relationMappings() {
         const Team = require('./Team');
         const Player = require('./Player');
+        const Stats = require('./Stats');
+        const Hit = require('.hit');
 
         return {
             individuals: {
@@ -47,6 +49,24 @@ class Game extends Model {
                         to: 'contest.team_id'
                     },
                     to: 'team.id'
+                }
+            },
+
+            stats: {
+                relation: Model.HasManyRelation,
+                modelClass: Stats,
+                join: {
+                    from: 'game.id',
+                    to: 'stats.game_id'
+                }
+            },
+
+            actions: {
+                relation: Model.HasManyRelation,
+                modelClass: Hit,
+                join: {
+                    from: 'game.id',
+                    to: 'hit.game_id'
                 }
             }
         }
