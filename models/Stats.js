@@ -8,6 +8,7 @@ class Stats extends Model {
 
     static get relationMappings() {
         const Gun = require('./Gun');
+        const Killed = require('./Killed')
 
         return {
             gun: {
@@ -16,6 +17,15 @@ class Stats extends Model {
                 join: {
                     from: 'stats.gun_id',
                     to: 'gun.id'
+                }
+            },
+
+            killed: {
+                relation: Model.HasManyRelation,
+                modelClass: Killed,
+                join: {
+                    from: 'stats.id',
+                    to: 'killed.killer_stats_id'
                 }
             }
         }

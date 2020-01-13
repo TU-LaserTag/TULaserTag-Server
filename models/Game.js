@@ -10,7 +10,7 @@ class Game extends Model {
         const Team = require('./Team');
         const Player = require('./Player');
         const Stats = require('./Stats');
-        const Hit = require('.hit');
+        const Hit = require('./Hit');
 
         return {
             individuals: {
