@@ -11,18 +11,15 @@ class Game extends Model {
         const Player = require('./Player');
         const Stats = require('./Stats');
         const Hit = require('./Hit');
+        const Individual = require('./Individual');
 
         return {
             individuals: {
-                relation: Model.ManyToManyRelation,
-                modelClass: Player,
+                relation: Model.HasManyRelation,
+                modelClass: Individual,
                 join: {
                     from: 'game.id',
-                    through: {
-                        from: 'individual.game_id',
-                        to: 'individual.player_username'
-                    },
-                    to: 'player.username'
+                    to: 'individual.game_id'
                 }
             },
 
