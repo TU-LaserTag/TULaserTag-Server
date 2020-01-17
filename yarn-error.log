@@ -1,20 +1,20 @@
 Arguments: 
-  /home/CS/users/danderso/.linux/.nvm/versions/node/v8.12.0/bin/node /usr/share/yarn/bin/yarn.js
+  /home/CS/users/danderso/.linux/.nvm/versions/node/v12.13.1/bin/node /usr/share/yarn/bin/yarn.js
 
 PATH: 
-  /home/CS/users/danderso/.linux/.nvm/versions/node/v8.12.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/home/CS/users/danderso/.linux/.dotnet/tools
+  /home/CS/users/danderso/.linux/.nvm/versions/node/v12.13.1/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/home/CS/users/danderso/.linux/.dotnet/tools
 
 Yarn version: 
   1.17.3
 
 Node version: 
-  8.12.0
+  12.13.1
 
 Platform: 
   linux x64
 
 Trace: 
-  Error: EBUSY: resource busy or locked, unlink '/home/CS/users/danderso/.linux/SeniorProject/TULaserTag-Server/node_modules/@hapi/joi/lib/.nfs0000000002601e730000037c'
+  Error: Unknown system error -122: Unknown system error -122, copyfile '/home/CS/users/danderso/.linux/.cache/yarn/v4/npm-core-js-compat-3.6.4-938476569ebb6cda80d339bcf199fae4f16fff17/node_modules/core-js-compat/get-modules-list-for-target-version.js' -> '/home/CS/users/danderso/.linux/SeniorProject/TULaserTag-Server/node_modules/core-js-compat/get-modules-list-for-target-version.js'
 
 npm manifest: 
   {
@@ -22,18 +22,37 @@ npm manifest:
     "version": "1.0.0",
     "description": "Server Side Laser Tag system",
     "main": "db.js",
+    "build": "vue-cli-service build",
+    "lint": "vue-cli-service lint",
     "dependencies": {
+      "axios": "^0.19.1",
       "blipp": "^4.0.1",
       "@hapi/hapi": "^18.4.0",
       "@hapi/joi": "^17.0.0",
       "hapi-pino": "^6.3.0",
       "knex": "^0.20.7",
       "objection": "^2.0.10",
-      "pg": "^7.17.0"
+      "pg": "^7.17.0",
+      "vue": "^2.6.11",
+      "vue-router": "^3.1.5",
+      "vuetify": "^2.2.4"
     },
-    "devDependencies": {},
+    "devDependencies": {
+      "@vue/cli-plugin-babel": "^4.0.0",
+      "@vue/cli-plugin-eslint": "^4.0.0",
+      "nodemon": "^2.0.2", 
+      "eslint": "^6.8.0",
+      "eslint-plugin-vue": "^6.1.2",
+      "babel-eslint": "^10.0.3",
+      "sass": "^1.24.4",
+      "sass-loader": "^8.0.2",
+      "vue-cli-plugin-vuetify": "^2.0.3",
+      "vue-template-compiler": "^2.6.11",
+      "vuetify-loader": "^1.4.3"
+    },
     "scripts": {
-      "test": "echo \"Error: no test specified\" && exit 1"
+      "vue-watch": "vue-cli-service build",
+      "api-watch": "nodemon --ignore ./node_modules db.js"
     },
     "repository": {
       "type": "git",
@@ -45,6 +64,10 @@ npm manifest:
     "bugs": {
       "url": "https://github.com/canthony224/TULaserTag-Server/issues"
     },
+    "browserslist": [
+      "> 1%",
+      "last 2 versions"
+    ],
     "homepage": "https://github.com/canthony224/TULaserTag-Server#readme"
   }
 
@@ -1076,7 +1099,7 @@ Lockfile:
     resolved "https://registry.yarnpkg.com/kind-of/-/kind-of-6.0.2.tgz#01146b36a6218e64e58f3a8d66de5d7fc6f6d051"
     integrity sha512-s5kLOcnH0XqDO+FvuaLX8DDjZ18CGFk7VygH40QoKPUQhW4e2rvM0rwUq0t8IQDOwYSeLK01U90OjzBTme2QqA==
   
-  knex@^0.20.2:
+  knex@^0.20.7:
     version "0.20.7"
     resolved "https://registry.yarnpkg.com/knex/-/knex-0.20.7.tgz#659ef45a395add4a40412bba6c749fe290f01cd5"
     integrity sha512-Yu5WfQqK9JSkxMAWnCdeWbsjTKTzsjMYjqmUowOQnyLMs4RspVehqXCVjg+aTtcVrTtIZ3WvoeE00OzFsZKJow==
@@ -1349,7 +1372,7 @@ Lockfile:
       postgres-date "~1.0.4"
       postgres-interval "^1.1.0"
   
-  pg@^7.12.1:
+  pg@^7.17.0:
     version "7.17.0"
     resolved "https://registry.yarnpkg.com/pg/-/pg-7.17.0.tgz#1fcf82238dcbebea63e192c944345c25c86992fc"
     integrity sha512-70Q4ZzIdPgwMPb3zUIzAUwigNJ4v5vsWdMED6OzXMfOECeYTvTm7iSC3FpKizu/R1BHL8Do3bLs6ltGfOTAnqg==

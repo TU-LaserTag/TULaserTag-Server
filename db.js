@@ -81,13 +81,18 @@ const init = async () => {
                 description: "Sign-in to server"
             },
             handler: async (request, h) => {
-                const facts = await Player.query().where('username', request.params.username).andWhere('password', request.params.password);
+                const facts = await Player.query().where('username', request.params.username).withGraphFetched('password');
 
                 if (facts.length == 1) {
-                    return {ok: true, body: facts, message: "Success!"}
+                    if (facts[0].password.password == request.params.password) {
+                        return {ok: true, message: "Success!"};
+                    }
+                    else {
+                        return {ok: false, message: "Incorrect password"};
+                    }
                 }
                 else {
-                    return {ok: false, message: "Incorrect username or password"};
+                    return {ok: false, message: "Incorrect username"};
                 }
             }
         },
@@ -160,7 +165,7 @@ const init = async () => {
             method: 'GET',
             path: '/game/{game_id}/{username}/{mac_address}',
             config: {
-                description: "Get information for an upcoming match"
+                description: "Sign into a certain match and get information about it"
             },
             handler: async (request, h) => {
                 // search for upcoming games
@@ -1029,7 +1034,7 @@ const init = async () => {
                 }
             },
             handler: async (request, h) => {
-                return await Game.query().insert(request.payload);
+                return await Game.query().insertAndFetch(request.payload);
             }
         },
 
@@ -1271,6 +1276,29 @@ const init = async () => {
             },
             handler: async (request, h) => {
                 return await Contest.query().delete().where('team_id', request.player.team_id).andWhere('game_id', request.params.game_id);
+            }
+        },
+
+        {
+            method: 'GET',
+            path: '/allgames',
+            config: {
+                description: "Gets all games in database"
+            },
+            handler: async (request, h) => {
+                return await Game.query();
+            }
+        },
+
+        {
+            method: 'GET',
+            path: '/game/info/{game_id}',
+            config: {
+                description: "Gets a certain game and its stats"
+            },
+            handler: async (request, h) => {
+                const game = await Game.query().where('id', request.params.game_id).withGraphFetched('stats.[killed, gun]').withGraphFetched('teams');
+                return game;
             }
         }
     ]);

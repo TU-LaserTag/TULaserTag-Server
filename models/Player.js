@@ -9,6 +9,7 @@ class Player extends Model {
     static get relationMappings() {
         const Team = require('./Team');
         const Game = require('./Game');
+        const Password = require('./Password');
 
         return {
             games: {
@@ -47,6 +48,15 @@ class Player extends Model {
                         to: 'assignment.team_id'
                     },
                     to: 'team.id'
+                }
+            },
+
+            password: {
+                relation: Model.HasOneRelation,
+                modelClass: Password,
+                join: {
+                    from: 'player.username',
+                    to: 'password.player_username'
                 }
             }
         }
