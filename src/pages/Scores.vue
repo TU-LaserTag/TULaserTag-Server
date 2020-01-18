@@ -17,9 +17,19 @@
         <br>
         <v-card>
             <v-card-title>
-                {{selectedGame.text}}
-                <v-spacer></v-spacer>
-                <v-text-field v-model="search" label="Search" single-line hide-details></v-text-field>
+                <v-row>
+                    <v-col cols=2>
+                        <v-layout justify-left>
+                        <v-btn outlined color=#61578b @click='refreshData()'>Refresh</v-btn>
+                        </v-layout>
+                    </v-col>
+                    <v-col>
+                        <v-layout justify-center> {{selectedGame.text}} </v-layout>
+                    </v-col>
+                    <v-col cols=2>
+                        <v-text-field class="pt-0 mt-0" v-model="search" label="Search" single-line hide-details ></v-text-field>
+                    </v-col>
+                </v-row>
             </v-card-title>
             <v-data-table v-if=teams v-bind:headers="game_headers" v-bind:items="players" v-bind:search="search">
                 <template slot="no-data">
@@ -98,13 +108,13 @@ export default {
         }
     },
     methods: {
-        setPlayers(game_id) {
+        setPlayers() {
+            const game_id = this.selectedGame.value;
+            if (game_id == -1) return;
             this.$axios.get(`game/info/${game_id}`).then(response => {
                 if (response.data[0].style == "team") this.teams = true;
                 else this.teams = false;
                 const stats = response.data[0].stats;
-                const teams = response.data[0].teams;
-                console.log(teams);
                 var players = [];
                 for (var i = 0; i < stats.length; i++) {
                     const kill_array = stats[i].killed;
@@ -112,19 +122,13 @@ export default {
                     for (var j = 0; j < kill_array.length; j++) {
                         killed.push(kill_array[j].player_username);
                     }
-                    var team_name = "";
-                    for (var k = 0; k < teams.length; k++) {
-                        if (teams[k].color == stats[i].team_color) {
-                            team_name = teams[k].name;
-                        }
-                    }
                     if (this.teams) {
                         players.push({
                             player_username: stats[i].player_username,
                             points: stats[i].points,
                             remaining_lives: stats[i].remaining_lives,
                             rounds_fired: stats[i].rounds_fired,
-                            team_name: team_name,
+                            team_name: stats[i].team_name,
                             team_color: stats[i].team_color,
                             killed: killed,
                             gun: stats[i].gun.mac_address
@@ -147,10 +151,13 @@ export default {
         },
         selectGame(game_option) {
             this.selectedGame = game_option;
-            this.setPlayers(game_option.value);
+            this.setPlayers();
         },
         showStats(item) {
             console.log(item);
+        },
+        refreshData() {
+            this.setPlayers();
         }
     }
 }

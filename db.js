@@ -60,6 +60,52 @@ function createDate() {
     return {date: month + "-" + day + "-" + year, time: hour + ":" + minute + ":" + second};
 }
 
+function getColors(num_of_teams) {
+    color_array = [];
+    const rand_num2 = Math.floor(Math.random()*25);
+    const rand_num3 = Math.floor(Math.random()*25);
+    const rand_num4 = Math.floor(Math.random()*25);
+    const rand_num5 = Math.floor(Math.random()*15) + 240;
+    const rand_num6 = Math.floor(Math.random()*15) + 115;
+    const rand_num7 = Math.floor(Math.random()*15) + 10;
+    const rand_num8 = Math.floor(Math.random()*15) + 65; //talk over these two with Physics guys next week
+    const rand_num9 = Math.floor(Math.random()*15) + 20; //this one as well. Need to decide what color the last option should be.
+    for (var k = 0; k < 8; k++) {
+        var rand_array = [rand_num2, rand_num3, rand_num4]
+        if (k % 2 == 0) {
+            rand_array[2] = 255-rand_num4;
+        }
+        if (k % 4 < 2) {
+            rand_array[1] = 255-rand_num3;
+        }
+        if (k < 4) {
+            rand_array[0] = 255-rand_num2;
+        }
+        if (k == 0) {
+            rand_array = [rand_num5, rand_num6, rand_num7];
+        }
+        else if (k == 7) {
+            rand_array = [rand_num8, rand_num6, rand_num9];
+        }
+        for (var h = 0; h < 3; h++) {
+            var rand_val = rand_array[h];
+            if (rand_val < 16) {
+                rand_val = rand_val.toString(16);
+                rand_val = "0" + rand_val;
+                rand_array[h] = rand_val
+            }
+        }
+        color_array.push("#" + rand_array[0].toString(16) + rand_array[1].toString(16) + rand_array[2].toString(16));
+    }
+    color_list = [];
+    for (var i = 0; i < num_of_teams; i++) {
+        rand_index = Math.floor(Math.random()*color_array.length)
+        color_list.push(color_array[rand_index]);
+        color_array.splice(rand_index, 1);
+    }
+    return color_list;
+}
+
 const init = async () => {
 	const server = Hapi.server({
 		host: 'localhost',
@@ -218,7 +264,7 @@ const init = async () => {
                         const stats = await Stats.query().where('game_id', nextGame.id).andWhere('player_username', request.params.username);
                         if (stats.length == 0) {
                             // place a stats object in for them
-                            await Stats.query().insert({game_id: nextGame.id, player_username: request.params.username, remaining_lives: nextGame.maxLives, style: nextGame.style, num_teams: nextGame.num_teams, team_color: "", gun_id: gun_id});
+                            await Stats.query().insert({game_id: nextGame.id, player_username: request.params.username, remaining_lives: nextGame.maxLives, style: nextGame.style, num_teams: nextGame.num_teams, team_color: "", team_name: "", gun_id: gun_id});
                         }
                         else {
                             // edit the stats object
@@ -261,19 +307,16 @@ const init = async () => {
                     }
                     // if no team was assigned to the player
                     if (team_index == -1) {
-                        // if not enough people have signed in yet to create new teams and not enough teams have been created yet, let the player create one
-                        if (nextGame.stats.length < num_teams && teams.length < num_teams) {
-                            // create stats id for the player
-                            await Stats.query().insert({game_id: nextGame.id, player_username: request.params.username, remaining_lives: nextGame.maxLives, style: nextGame.style, num_teams: nextGame.num_teams, team_color: "", gun_id: gun_id});
-                            // create empty team for player to update but avoids the problem of incoming players not being assigned; also assign player to the team and team to the game
-                            const team = await Team.query().insertAndFetch({name: "", color: ""});
-                            await Assignment.query().insert({team_id: team.id, player_username: request.params.username});
-                            await Contest.query().insert({team_id: team.id, game_id: nextGame.id});
-                            return {ok: true, game: nextGame, team: team, needColor: true, needName: true, gun_id: gun_id}
-                        }
                         // assigns player to the team with the fewest number of players
                         await Assignment.query().insert({team_id: teams[minPlayerTeamIndex].id, player_username: request.params.username})
                         team_index = minPlayerTeamIndex;
+                        // if not enough people have signed in yet to create names for teams, let the player create one
+                        if (nextGame.stats.length < num_teams) {
+                            // create stats id for the player
+                            await Stats.query().insert({game_id: nextGame.id, player_username: request.params.username, remaining_lives: nextGame.maxLives, style: nextGame.style, num_teams: nextGame.num_teams, team_color: teams[team_index].color, team_name: null, gun_id: gun_id});
+
+                            return {ok: true, game: nextGame, team: teams[team_index], needColor: false, needName: true, gun_id: gun_id}
+                        }
                     }
                 }
                 
@@ -283,7 +326,7 @@ const init = async () => {
                 // if no stats page has been created yet
                 if (stats.length == 0) {
                     //create the stats column
-                    await Stats.query().insert({game_id: nextGame.id, player_username: request.params.username, remaining_lives: nextGame.maxLives, style: nextGame.style, num_teams: nextGame.num_teams, team_color: teams[team_index].color, gun_id: gun_id});
+                    await Stats.query().insert({game_id: nextGame.id, player_username: request.params.username, remaining_lives: nextGame.maxLives, style: nextGame.style, num_teams: nextGame.num_teams, team_color: teams[team_index].color, team_name: teams[team_index].name, gun_id: gun_id});
                 }
                 else {
                     // updates gun_id in case the previous one was faulty
@@ -317,7 +360,7 @@ const init = async () => {
 
                 // if player is on a team, update the person's stats page for the game
                 if (team) {
-                    await Stats.query().patch({team_color: team.color}).where('player_username', request.params.username).andWhere('game_id', request.params.game_id);
+                    await Stats.query().patch({team_color: team.color, team_name: team.name}).where('player_username', request.params.username).andWhere('game_id', request.params.game_id);
                 }
                 //return the team information
                 return {team: team};
@@ -378,10 +421,10 @@ const init = async () => {
                     return {ok: false, team: null};
                 }
                 if (currentGame.num_teams == 0) {
-                    await Stats.query().patch({remaining_lives: currentGame.maxLives, num_teams: currentGame.num_teams, team_color: individual.color}).where('game_id',request.params.game_id).andWhere('player_username', request.params.username);
+                    await Stats.query().patch({remaining_lives: currentGame.maxLives, num_teams: currentGame.num_teams, team_color: individual.color, team_name: null}).where('game_id',request.params.game_id).andWhere('player_username', request.params.username);
                 }
                 else {  
-                    await Stats.query().patch(   {remaining_lives: currentGame.maxLives, num_teams: currentGame.num_teams, team_color: team.color}).where('game_id',request.params.game_id).andWhere('player_username', request.params.username);
+                    await Stats.query().patch({remaining_lives: currentGame.maxLives, num_teams: currentGame.num_teams, team_color: team.color, team_name: team.name}).where('game_id',request.params.game_id).andWhere('player_username', request.params.username);
                 }
                 const playerStats = await Stats.query().where('game_id', request.params.game_id).andWhere('player_username', request.params.username).first();
 
@@ -402,79 +445,74 @@ const init = async () => {
         },
 
         {
-            method: 'POST',
-            path: '/color/{username}/{team_id?}',
+            method: 'PATCH',
+            path: '/name/{username}/{game_id}/{team_id}',
             config: {
-                description: "Create new team/individual for the next upcoming match",
+                description: "Create name for team for the upcoming match",
                 validate: {
                     payload: Joi.object({
-                        color: Joi.string().required(),
-                        name: Joi.string().allow("").required(),
-                        game: Joi.object().required()
+                        name: Joi.string().required()
+                    })
+                }
+            },
+            handler: async (request, h) => {
+                duplicate_team = await Team.query().where('name', request.payload.name);
+                if (duplicate_team.length > 0) {
+                    return {ok: false, message: "Duplicate name"};
+                }
+                const team = await Team.query().patchAndFetchById(request.params.team_id, {name: request.payload.name});
+                await Stats.query().patch({team_name: request.payload.name}).where('game_id', request.params.game_id).andWhere('player_username', request.params.username);
+                return {ok: true, team: team};
+            }
+        },
+
+        {
+            method: 'POST',
+            path: '/color/{username}/{game_id}',
+            config: {
+                description: "Create new color for an upcoming solo match",
+                validate: {
+                    payload: Joi.object({
+                        color: Joi.string().required()
                     })
                 }
             },
             handler: async (request, h) => {
                 // get the game from the payload
-                game = request.payload.game;
-
-                // check for conflicting names 
-                const sameName = await Team.query().where('name', request.payload.name);
-                if (sameName.length > 0) { //|| sameColor.length > 0) {
-                    return {ok: false, message: "Duplicate name"};
-                }
-                // check for conflicting colors in the same game
-                const colorTeams = await Team.query().where('color',request.payload.color).withGraphFetched('games(sameGame)').modifiers({
-                    sameGame(builder) {
-                        builder.where('game.id',game.id);
-                    }
-                });
-
-                if (colorTeams.length > 0) {
-                    return {ok: false, message: "Duplicate color"};
-                }
+                game = await Game.query().where('id', request.params.game_id).withGraphFetched('individuals').first();
 
                 // get the username
                 username = request.params.username;
                 
+                player_id = -1;
+                console.log(game);
+                // ensure the individual is signed up for the game and his color is unique
+                for (var i = 0; i < game.individuals.length; i++) {
+                    if (game.individuals[i].color == request.payload.color) {
+                        return {ok: false, message: "Duplicate color"};
+                    }
+
+                    if (game.individuals[i].username == username) {
+                        player_id = i;
+                        break;
+                    }
+                }
                 // ensure the Stats object for the player is updated accordingly
                 await Stats.query().patch({team_color: request.payload.color}).where('game_id', game.id).andWhere('player_username', username);
 
-                // if an individual game
-                if (game.num_teams == 0) {
-                    player_id = -1;
-                    // ensure the individual is signed up for the game
-                    for (var i = 0; i < game.individuals.length; i++) {
-                        if (game.individuals[i].username == username) {
-                            player_id = i;
-                            break;
-                        }
-                        if (game.individuals[i].color == request.payload.color) {
-                            return {ok: false, message: "Duplicate color"};
-                        }
-                    }
-
-                    // if he is not
-                    if (player_id == -1) {
-                        // sign him up
-                        await Individual.query().insert({game_id: game.id, color: request.payload.color, player_username: username});
-                        // return information
-                        return {ok: true, game: game, team: null, needColor: false, needName: false};
-                    }
-                    // otherwise
-                    else {
-                        // make sure info is correct
-                        await Individual.query().patch({color: request.payload.color}).where('player_username', username).andWhere('game_id',game.id);
-                        // return information
-                        return {ok: true, game: game, team: null, needColor: false, needName: false};
-                    }
+                // if he is not
+                if (player_id == -1) {
+                    // sign him up
+                    await Individual.query().insert({game_id: game.id, color: request.payload.color, player_username: username});
+                    // return information
+                    return {ok: true};
                 }
-                // otherwise we have a team match
+                // otherwise
                 else {
-                    // update the created team
-                    const createdTeam = await Team.query().patch({name: request.payload.name, color: request.payload.color}).where('id', request.params.team_id);
-                    // return the information
-                    return {ok: true, game: game, team: createdTeam, needColor: false, needName: false};
+                    // make sure info is correct
+                    await Individual.query().patch({color: request.payload.color}).where('player_username', username).andWhere('game_id',game.id);
+                    // return information
+                    return {ok: true};
                 }
             }
         },
@@ -695,7 +733,6 @@ const init = async () => {
 
                 // if user died, update respective items
                 if (die) {
-                    //NEED TO TEST THIS TO ENSURE THAT IT WORKS
 
                     // update shooter's statistics by placing a killed object in the killed table
                     await Killed.query().insert({player_username: request.payload.username, killer_stats_id: killer_stats_id});
@@ -900,9 +937,9 @@ const init = async () => {
 
         { //TODO check whether this actually handles duplicate colors or whether it does not work
             method: 'POST',
-            path: '/createbatch/team/{game_id?}',
+            path: '/createbatch/team/{game_id}',
             config: {
-                description: 'Creates many teams at once and creates array to assign them to a game',
+                description: 'Creates many teams at once and assigns them to a game',
                 validate: {
                     payload: Joi.array().items(
                         Joi.object({
@@ -917,49 +954,51 @@ const init = async () => {
                 // these handle creating an id_array and new teams
                 id_array = [];
                 new_team_array = [];
+                final_team_array = [];
+                
+                // array of options for a team's colors
+                color_options = getColors(request.payload.length);
 
                 // these handle checking for duplicate colors in the creation of teams
                 color_array = [];
-                var duplicate_color = false;
 
-                console.log(request.payload);
                 // loop through all teams
                 for (var i = 0; i < request.payload.length; i++) {
-                    console.log(request.payload[i]);
-                    // if a color is in the array already, the boolean value is set to true; otherwise, the color is added.
-                    if (color_array.includes(request.payload[i].color)) duplicate_color = true;
-                    else color_array.push(request.payload[i].color)
-
                     // if the team exists already, patch it in case changes have been made
+                    var color = request.payload[i].color;
+                    if (!color) {
+                        color = color_options.pop();
+                    }
+                    
+                    while (color_array.includes(color)) {
+                        color = color_options.pop();
+                    }
+
                     if (request.payload[i].team_id) {
                         id_array.push({team_id: request.payload[i].team_id, game_id: request.params.game_id});
-                        await Team.query().patch({name: request.payload[i].name, color: request.payload[i].color}).where('id', request.payload[i].team_id)
+                        var team = await Team.query().patchAndFetchById(request.payload[i].team_id, {name: request.payload[i].name, color: color});
+                        final_team_array.push(team);
+                        color_array.push(color);
                     }
 
                     // if the team does not exist
                     else {
-                        new_team_array.push({name: request.payload[i].name, color: request.payload[i].color});
+                        new_team_array.push({name: request.payload[i].name, color: color});
+                        color_array.push(color);
                     }
                 }
 
                 // create all new teams at once
                 new_teams = await Team.query().insertAndFetch(new_team_array);
-                console.log(new_teams);
+                // finish creating the array for 
+                new_teams.forEach(element => {
+                    id_array.push({team_id: element.id, game_id: request.params.game_id});
+                    final_team_array.push(element);
+                });
+                // sends back list of ids and teams ready to go into the Contest table
+                await Contest.query().insert(id_array);
 
-                // if there is a game_id, create an array using the id
-                if (request.params.game_id) {
-                    // if there are duplicate colors, we have a problem
-                    if (duplicate_color) return {ok: false, message: "Duplicate colors in same game are not allowed."}
-                    // otherwise, create the array
-                    console.log(new_teams[0]);
-                    new_teams.forEach(element => id_array.push({team_id: element.id, game_id: request.params.game_id}));  
-                    // sends back list of ids and teams ready to go into the Contest table
-                    return {ok: true, id_array};            
-                }
-                else {
-                    // if there is no game_id, simply return the new teams created
-                    return {ok: true, new_teams};
-                }
+                return final_team_array;          
             }
         },
 
@@ -1297,8 +1336,51 @@ const init = async () => {
                 description: "Gets a certain game and its stats"
             },
             handler: async (request, h) => {
-                const game = await Game.query().where('id', request.params.game_id).withGraphFetched('stats.[killed, gun]').withGraphFetched('teams');
+                const game = await Game.query().where('id', request.params.game_id).withGraphFetched('stats.[killed, gun]').withGraphFetched('teams.players');
                 return game;
+            }
+        },
+
+        {
+            method: 'GET',
+            path: '/games/upcoming',
+            config: {
+                description: "Gets all upcoming games"
+            },
+            handler: async (request, h) => {
+                return await Game.query().where('locked', false);
+            }
+        },
+
+        {
+            method: 'GET',
+            path: '/games/current',
+            config: {
+                description: "Gets the current games and time remaining on each of them"
+            },
+            handler: async (request, h) => {
+                const games = await Game.query().where('locked', true).andWhere('date', createDate().date).andWhere('winners',  null);
+                time = [];
+                for (var i = 0; i < games.length; i++) {
+                    const endtime = games[i].endtime;
+                    const end_time_array = endtime.split(":");
+                    const current_time_array = createDate().time.split(":");
+                    var time_left = 0
+                    for (var j = 0; j < 3; j++) {
+                        //calculates remaining time in seconds until game starts; starts with seconds and goes up to hours
+                        time_left += (Math.pow(60, j))*(Number(end_time_array[2-j]) - Number(current_time_array[2-j]));
+                    }
+                    // convert back to HH:MM:SS
+                    var hours = Math.floor(time_left / 3600);
+                    time_left %= 3600;
+                    var minutes = Math.floor(time_left/60);
+                    if (minutes < 10) minutes = "0" + minutes
+                    var seconds = time_left % 60;
+                    if (seconds < 10) seconds = "0" + seconds
+                    time.push(hours + ":" + minutes + ":" + seconds);
+
+                }
+                return {games: games, time: time}
             }
         }
     ]);
