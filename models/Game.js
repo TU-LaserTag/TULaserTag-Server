@@ -12,6 +12,7 @@ class Game extends Model {
         const Stats = require('./Stats');
         const Hit = require('./Hit');
         const Individual = require('./Individual');
+        const Announcement = require('./Announcement');
 
         return {
             individuals: {
@@ -64,6 +65,15 @@ class Game extends Model {
                 join: {
                     from: 'game.id',
                     to: 'hit.game_id'
+                }
+            },
+
+            announcement: {
+                relation: Model.HasOneRelation,
+                modelClass: Announcement,
+                join: {
+                    from: 'game.id',
+                    to: 'announcement.game_id'
                 }
             }
         }

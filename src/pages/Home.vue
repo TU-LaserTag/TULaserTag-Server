@@ -3,6 +3,7 @@
         <v-row>
             <v-layout justify-center><h1 style="color:#61578b">Welcome!</h1></v-layout>
         </v-row>
+        <br>
         <v-row>
             <v-col>
                 <current-games></current-games>
@@ -26,7 +27,6 @@
             <v-avatar :color="this.color_array[6]"></v-avatar>
             <v-avatar :color="this.color_array[7]"></v-avatar>
         </div>
-        <v-btn raised @click='generate_colors()'>Try me</v-btn>
        
     </v-container>
 </template>

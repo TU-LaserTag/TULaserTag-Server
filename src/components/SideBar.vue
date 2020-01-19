@@ -9,7 +9,7 @@
             <v-list-item-icon>
               <v-icon color="#ae936c">mdi-scoreboard-outline</v-icon>
             </v-list-item-icon>
-            <v-list-item-title><div onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" style="font-size:20px; color:#ae936c">Check live scores</div></v-list-item-title>
+            <v-list-item-title><div onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" style="font-size:20px; color:#ae936c">Live scores</div></v-list-item-title>
           </v-list-item>
 
         <v-list-item color=white link v-bind:to="{ name: 'ltc'}">
@@ -24,6 +24,13 @@
             <v-icon color="#ae936c">mdi-information-outline</v-icon>
           </v-list-item-icon>
           <v-list-item-title><div onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" style="font-size:20px; color:#ae936c">About this site</div></v-list-item-title>
+        </v-list-item>
+
+        <v-list-item color=white link v-bind:to="{ name: 'team-captain'}">
+          <v-list-item-icon>
+            <v-icon color="#ae936c">mdi-account-circle-outline</v-icon>
+          </v-list-item-icon>
+          <v-list-item-title><div onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" style="font-size:20px; color:#ae936c">Team Captain</div></v-list-item-title>
         </v-list-item>
 
         <v-list-item color=white link v-bind:to="{ name: 'admin'}">

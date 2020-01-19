@@ -23,6 +23,9 @@ const Individual = require('./models/Individual');
 const Hit = require('./models/Hit');
 const Gun = require('./models/Gun');
 const Killed = require('./models/Killed');
+const Role = require('./models/Role');
+const Password = require('./models/Password');
+const Announcement = require('./models/Announcement');
 
 const Hapi = require('@hapi/hapi');
 const Joi = require('@hapi/joi');
@@ -122,16 +125,17 @@ const init = async () => {
 	server.route([
         {
             method: 'GET',
-            path: '/player/{username}/{password}', //possibly no password? Need secure way to transmit.
+            path: '/player/{username}/{password}',
             config: {
-                description: "Sign-in to server"
+                description: "Sign-in to server and retrieve possible player roles"
             },
             handler: async (request, h) => {
-                const facts = await Player.query().where('username', request.params.username).withGraphFetched('password');
+                const person = await Player.query().where('username', request.params.username).withGraphFetched('roles');
 
-                if (facts.length == 1) {
-                    if (facts[0].password.password == request.params.password) {
-                        return {ok: true, message: "Success!"};
+                if (person.length == 1) {
+                    const password = await Password.query().where('player_username', request.params.username).first();
+                    if (password.password == request.params.password) {
+                        return {ok: true, message: "Success!", person: person[0]};
                     }
                     else {
                         return {ok: false, message: "Incorrect password"};
@@ -140,6 +144,17 @@ const init = async () => {
                 else {
                     return {ok: false, message: "Incorrect username"};
                 }
+            }
+        },
+
+        {
+            method: 'GET',
+            path: '/player/roles/{username}',
+            config: {
+                description: "Get roles for a specific person without signing in"
+            },
+            handler: async (request, h) => {
+                return await Role.query().where('player_username', request.params.username).first();
             }
         },
 
@@ -163,15 +178,17 @@ const init = async () => {
                 description: "Sign-up for the server",
                 validate: {
                     payload: Joi.object({
-                        username: Joi.string().required(),
+                        player_username: Joi.string().required(),
                         password: Joi.string().required()
                     })
                 }
             },
             handler: async (request, h) => {
-                const user = await Player.query().where('username', request.payload.username);
+                const user = await Player.query().where('username', request.payload.player_username);
                 if (user.length == 0) {
-                    const newPlayer = await Player.query().insertAndFetch(request.payload);
+                    const newPlayer = await Player.query().insertAndFetch({username: request.payload.player_username});
+                    await Password.query().insert(request.payload)
+                    await Role.query().insert({player_username: request.payload.player_username});
                     if (newPlayer) {
                         return {ok: true, body: newPlayer, message: "Success!"}
                     }
@@ -376,7 +393,7 @@ const init = async () => {
             handler: async (request, h) => {
                 var team = null;
                 var individual = null;
-                const currentGame = await Game.query().where('id', request.params.game_id).withGraphFetched('teams.players').withGraphFetched('individuals').withGraphFetched('stats').first();
+                const currentGame = await Game.query().where('id', request.params.game_id).withGraphFetched('teams.players').withGraphFetched('individuals').withGraphFetched('stats').withGraphFetched('announcement').first();
                 const teams = currentGame.teams;
                 const stats = currentGame.stats;
                 const individuals = currentGame.individuals;
@@ -1157,15 +1174,12 @@ const init = async () => {
                 //calculates seconds for start and end of games with a thirty second runoff
                 end_time_string = end_time_string + (Number(time_array[2]) + Number(game_length_array[2]) + request.payload.secs_to_start);
                 start_time_string = time_array[0] + ":" + time_array[1] + ":" + (Number(time_array[2]) + request.payload.secs_to_start);
-
-                //calculates exact number of seconds to start of game
-                num_seconds = Number(game_length_array[2]) + Number(game_length_array[1])*60 + Number(game_length_array[0])*3600;
                 
                 //updates game object and locks game for start
                 await Game.query().patch({locked: true, starttime: start_time_string, endtime: end_time_string, date: date.date, players_alive: game.stats.length, teams_alive: teams_alive}).where('id',request.payload.id)
 
                 //returns that everything is good to go and the number of seconds until the start of the game, in case it is different from the seconds requested
-                return {ok: true, num_seconds: num_seconds};
+                return {ok: true};
             }
         },
 
@@ -1336,7 +1350,7 @@ const init = async () => {
                 description: "Gets a certain game and its stats"
             },
             handler: async (request, h) => {
-                const game = await Game.query().where('id', request.params.game_id).withGraphFetched('stats.[killed, gun]').withGraphFetched('teams.players');
+                const game = await Game.query().where('id', request.params.game_id).withGraphFetched('stats.[killed, gun]').withGraphFetched('teams.players').withGraphFetched('announcement');
                 return game;
             }
         },
@@ -1381,6 +1395,46 @@ const init = async () => {
 
                 }
                 return {games: games, time: time}
+            }
+        },
+
+        {
+            method: 'GET',
+            path: '/announcements/general',
+            config: {
+                description: "Get general announcements"
+            },
+            handler: async (request, h) => {
+                return await Announcement.query().where('game_id', null);
+            }
+        },
+
+        {
+            method: 'POST',
+            path: '/announcements',
+            config: {
+                description: "Get general announcements",
+                validate: {
+                    payload: Joi.object({
+                        announcement: Joi.string().required(),
+                        game_id: Joi.number().allow(null).required(),
+                        time: Joi.date().required()
+                    })
+                }
+            },
+            handler: async (request, h) => {
+                return await Announcement.query().insert(request.payload);
+            }
+        },
+
+        {
+            method: 'GET',
+            path: '/players',
+            config: {
+                description: "Get all players"
+            },
+            handler: async (request, h) => {
+                return await Player.query().withGraphFetched('password').withGraphFetched('roles');
             }
         }
     ]);

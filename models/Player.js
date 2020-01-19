@@ -10,6 +10,7 @@ class Player extends Model {
         const Team = require('./Team');
         const Game = require('./Game');
         const Password = require('./Password');
+        const Role = require('./Role');
 
         return {
             games: {
@@ -57,6 +58,15 @@ class Player extends Model {
                 join: {
                     from: 'player.username',
                     to: 'password.player_username'
+                }
+            },
+
+            roles: {
+                relation: Model.HasOneRelation,
+                modelClass: Role,
+                join: {
+                    from: 'player.username',
+                    to: 'role.player_username'
                 }
             }
         }
