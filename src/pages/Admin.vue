@@ -1,5 +1,5 @@
 <template>
-    <v-container>
+    <v-container fluid>
         <v-layout justify-center>
             <v-card v-if=!signedIn>
                 <v-toolbar>
@@ -19,7 +19,7 @@
                 </v-card-actions>
             </v-card>
         </v-layout>
-        <v-toolbar flat v-if=signedIn>
+        <v-toolbar flat fluid v-if=signedIn>
             <span class='pa-2' style='font-size:32px'> Hello, <span style='font-style:italic'>{{username}}!</span></span>    
             <v-spacer />
             <span class=mr-12><font style=font-size:28px>Options:</font></span>

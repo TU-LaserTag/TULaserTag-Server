@@ -203,6 +203,74 @@ const init = async () => {
         },
 
         {
+            method: 'PATCH',
+            path: '/change/player/{old_username}',
+            config: {
+                description: "Edit a player",
+                validate: {
+                    payload: Joi.object({
+                        player_username: Joi.string().required(),
+                        password: Joi.string(), //remove?
+                        admin: Joi.boolean().required(),
+                        possible_host: Joi.boolean().required(),
+                        team_captain: Joi.boolean().required()
+                    })
+                }
+            },
+            handler: async (request, h) => {
+                old_username = request.params.old_username;
+                player_username = request.payload.player_username;
+                password = request.payload.password;
+                admin = request.payload.admin;
+                possible_host = request.payload.possible_host;
+                team_captain = request.payload.team_captain;
+
+                // if the username is not being changed
+                if (player_username == old_username) {
+                    await Password.query().patch({password: password}).where('player_username', player_username);
+                    await Role.query().patch({admin: admin, possible_host: possible_host, team_captain: team_captain}).where('player_username', player_username);
+                    console.log("Change?");
+                    return {ok: true, message: "Player has been updated"}
+                }
+                // otherwise ensure there is not a duplicate
+                const user = await Player.query().where('username', player_username);
+                if (user.length == 0) {
+                    console.log("Definitely");
+                    // clear all foreign keys associated with the user
+                    await Password.query().patch({player_username: null}).where('player_username', old_username);
+
+                    await Role.query().patch({player_username: null}).where('player_username', old_username);
+                    
+                    await Individual.query().patch({player_username: null}).where('player_username', old_username);
+                    
+                    await Assignment.query().patch({player_username: null}).where('player_username', old_username)
+
+                    await Stats.query().patch({player_username: null}).where('player_username', old_username);
+
+                    // update player's username
+                    await Player.query().patch({username: player_username}).where('username', old_username);
+
+                    // update all other associations with the player                    
+                    await Password.query().patch({player_username: player_username, password: request.payload.password}).where('player_username', null);
+
+                    await Role.query().patch({player_username: player_username, admin: admin, possible_host: possible_host, team_captain: team_captain}).where('player_username', null);
+
+                    await Individual.query().patch({player_username: player_username}).where('player_username', null);
+
+                    await Assignment.query().patch({player_username: player_username}).where('player_username', null);
+
+                    await Stats.query().patch({player_username: player_username}).where('player_username', null);
+
+                    // return message signifying completion
+                    return {ok: true, message: "Player has been updated"};
+                }
+                else {
+                    return {ok: false, message: "Username already in use. Please try again"}
+                }
+            }
+        },
+
+        {
             method: 'GET',
             path: '/game',
             config: {
@@ -477,7 +545,7 @@ const init = async () => {
                 if (duplicate_team.length > 0) {
                     return {ok: false, message: "Duplicate name"};
                 }
-                const team = await Team.query().patchAndFetchById(request.params.team_id, {name: request.payload.name});
+                const team = await Team.query().patchAndFetchById(request.params.team_id, {name: request.payload.name, used: true});
                 await Stats.query().patch({team_name: request.payload.name}).where('game_id', request.params.game_id).andWhere('player_username', request.params.username);
                 return {ok: true, team: team};
             }
@@ -509,7 +577,8 @@ const init = async () => {
                         return {ok: false, message: "Duplicate color"};
                     }
 
-                    if (game.individuals[i].username == username) {
+                    if (game.individuals[i].player_username == username) {
+                        console.log("Roger " + i);
                         player_id = i;
                         break;
                     }
@@ -948,7 +1017,7 @@ const init = async () => {
                 }
             },
             handler: async (request, h) => {
-                return await Team.query().insert(request.payload);
+                return await Team.query().insert({name: request.payload.name, color: request.payload.color, used: true});
             }
         },
 
@@ -1023,7 +1092,7 @@ const init = async () => {
             method: 'PATCH',
             path: '/change/team/{id}',
             config: {
-                description: 'Creates a team',
+                description: 'Changes a team',
                 validate: {
                     payload: Joi.object({
                         name: Joi.string().allow("").required(),
@@ -1032,7 +1101,7 @@ const init = async () => {
                 }
             },
             handler: async (request, h) => {
-                return await Team.query().patch(request.payload).where('id', request.params.id);
+                return await Team.query().patch({name: request.payload.name, color: request.payload.color, used: true}).where('id', request.params.id);
             }
         },
 
@@ -1044,7 +1113,6 @@ const init = async () => {
             },
             handler: async (request, h) => {
                 const teams = await Game.query().where('id', request.params.game_id).first().withGraphFetched('teams.players');
-                console.log(teams);
                 return teams.teams;
             }
         },
@@ -1201,7 +1269,7 @@ const init = async () => {
                 description: "Get all teams"
             },
             handler: async (request, h) => {
-                return await Team.query();
+                return await Team.query().where('used', true);
             }
         },
 

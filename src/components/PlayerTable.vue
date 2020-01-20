@@ -4,9 +4,6 @@
             <v-card-title>
                 <v-row>
                     <v-col cols=2>
-                        <v-layout justify-left>
-                        <v-btn outlined color=#61578b @click='refreshData()'>Refresh</v-btn>
-                        </v-layout>
                     </v-col>
                     <v-col>
                         <v-layout justify-center>Player Table</v-layout>
@@ -50,6 +47,33 @@
                 </template>
             </v-data-table>
         </v-card>
+        
+        <div>
+            <v-dialog persistent v-model="edit_player_visible" max-width=500px>
+                <v-card>
+                    <v-card-title>
+                        Edit Player Table
+                    </v-card-title>
+                    <v-form v-model="valid">
+                        <v-card-text>
+                            <v-text-field label="Username" v-model="selectedPlayer.username" :rules="usernameRules" required>
+                            </v-text-field>
+                            <v-text-field label="Password" v-model="selectedPlayer.password">
+                            </v-text-field>
+                            <v-checkbox color="#007476" label="Admin" v-model="selectedPlayer.admin"></v-checkbox>
+                            <v-checkbox color="#007476" label="Host" v-model="selectedPlayer.possible_host"></v-checkbox>
+                            <v-checkbox color="#007476" label="Team Captain" v-model="selectedPlayer.team_captain"></v-checkbox>
+                            <span style="color:red; font-size:17px">{{message}}</span>
+                        </v-card-text>
+                        <v-card-actions>
+                            <v-spacer />
+                            <v-btn v-on:click="patchPlayer" :disabled="!valid">Submit</v-btn>
+                            <v-btn v-on:click="cancel">Cancel</v-btn>
+                        </v-card-actions>
+                    </v-form>
+                </v-card>
+            </v-dialog>
+        </div>
     </div>
 </template>
 
@@ -57,6 +81,7 @@
 export default {
     data: function() {
         return {
+            selectedPlayer: {},
             search: "",
             player_headers: [
                 {text: "Username", value: "username"},
@@ -67,7 +92,13 @@ export default {
                 {text: "Edit Player", value: "editPlayer"},
                 {text: "Delete Player", value: "deletePlayer"}
             ],
-            players: []
+            players: [],
+            edit_player_visible: false,
+            usernameRules: [
+                v => !!v || 'Username is required'
+            ],
+            valid: false,
+            message: ""
         }
     },
     mounted: function () {
@@ -76,6 +107,7 @@ export default {
             var players = [];
             for (var i = 0; i < player_list.length; i++) {
                 players.push({
+                    id: i,
                     username: response.data[i].username,
                     password: response.data[i].password.password,
                     admin: response.data[i].roles.admin,
@@ -88,13 +120,23 @@ export default {
     },
     methods: {
         editPlayerInfo(player) {
-            console.log("Edit " + player);
+            this.selectedPlayer = JSON.parse(JSON.stringify(player));
+            this.edit_player_visible = true;
         },
         deletePlayer(player) {
             console.log("Delete " + player);
         },
-        refreshData() {
+        newPlayer() {
             console.log("Refresh data");
+        },
+        patchPlayer() {
+            
+            
+            this.edit_player_visible = false;
+            console.log("Nice try");
+        },
+        cancel() {
+            this.edit_player_visible = false;
         }
     }
 }
