@@ -359,11 +359,12 @@ const init = async () => {
                 // gets teams currently associated with the game
                 team_index = -1;
                 teams = nextGame.teams;
-
+                var player_list = [];
                 // if the admin/host chooses the teams
                 if (nextGame.team_selection == "manual") {
                     //search for person in teams
                     for (var i = 0; i < teams.length; i++) {
+                        player_list = teams[i].players;
                         for (var j = 0; j < player_list.length; j++) {
                             if (player_list[j].username == request.params.username) {
                                 team_index = i;
