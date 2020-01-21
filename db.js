@@ -64,15 +64,16 @@ function createDate() {
 }
 
 function getColors(num_of_teams) {
-    color_array = [];
     const rand_num2 = Math.floor(Math.random()*25);
     const rand_num3 = Math.floor(Math.random()*25);
     const rand_num4 = Math.floor(Math.random()*25);
     const rand_num5 = Math.floor(Math.random()*15) + 240;
     const rand_num6 = Math.floor(Math.random()*15) + 115;
-    const rand_num7 = Math.floor(Math.random()*15) + 10;
-    const rand_num8 = Math.floor(Math.random()*15) + 65; //talk over these two with Physics guys next week
-    const rand_num9 = Math.floor(Math.random()*15) + 20; //this one as well. Need to decide what color the last option should be.
+    const rand_num7 = Math.floor(Math.random()*15);
+    const rand_num8 = Math.floor(Math.random()*15) + 30; //talk over these two with Physics guys next week
+    const rand_num9 = Math.floor(Math.random()*15) + 60; //this one as well. Need to decide what color the last option should be.
+    color_array = [];
+    names = ['orange', 'yellow', 'purple', 'red', 'indigo', 'green', 'blue', 'pink'];
     for (var k = 0; k < 8; k++) {
         var rand_array = [rand_num2, rand_num3, rand_num4]
         if (k % 2 == 0) {
@@ -88,7 +89,7 @@ function getColors(num_of_teams) {
             rand_array = [rand_num5, rand_num6, rand_num7];
         }
         else if (k == 7) {
-            rand_array = [rand_num8, rand_num6, rand_num9];
+            rand_array = [rand_num5, rand_num8, rand_num9];
         }
         for (var h = 0; h < 3; h++) {
             var rand_val = rand_array[h];
@@ -98,7 +99,7 @@ function getColors(num_of_teams) {
                 rand_array[h] = rand_val
             }
         }
-        color_array.push("#" + rand_array[0].toString(16) + rand_array[1].toString(16) + rand_array[2].toString(16));
+        color_array.push({color: "#" + rand_array[0].toString(16) + rand_array[1].toString(16) + rand_array[2].toString(16), name: names[k]});
     }
     color_list = [];
     for (var i = 0; i < num_of_teams; i++) {
@@ -179,22 +180,25 @@ const init = async () => {
                 validate: {
                     payload: Joi.object({
                         player_username: Joi.string().required(),
-                        password: Joi.string().required()
+                        password: Joi.string().required(),
+                        admin: Joi.boolean(),
+                        possible_host: Joi.boolean(),
+                        team_captain: Joi.boolean()
                     })
                 }
             },
             handler: async (request, h) => {
                 const user = await Player.query().where('username', request.payload.player_username);
                 if (user.length == 0) {
-                    const newPlayer = await Player.query().insertAndFetch({username: request.payload.player_username});
-                    await Password.query().insert(request.payload)
-                    await Role.query().insert({player_username: request.payload.player_username});
-                    if (newPlayer) {
-                        return {ok: true, body: newPlayer, message: "Success!"}
+                    await Player.query().insert({username: request.payload.player_username});
+                    await Password.query().insert({player_username: request.payload.player_username, password: request.payload.password});
+                    if (request.payload.admin || request.payload.possible_host || request.payload.team_captain) {
+                        await Role.query().insert({player_username: request.payload.player_username, admin: request.payload.admin, possible_host: request.payload.possible_host, team_captain: request.payload.team_captain});
                     }
                     else {
-                        return {ok: false, message: "Unexpected error. Please try again."}
+                        await Role.query().insert({player_username: request.payload.player_username});
                     }
+                    return {ok: true, message: "Player has been added"}
                 }
                 else {
                     return {ok: false, message: "Username already in use. Please try again"}
@@ -267,6 +271,28 @@ const init = async () => {
                 else {
                     return {ok: false, message: "Username already in use. Please try again"}
                 }
+            }
+        },
+
+        {
+            method: 'DELETE',
+            path: '/player/{username}',
+            config: {
+                description: "Delete a player and all associated entities"
+            },
+            handler: async (request, h) => {
+                username = request.params.username;
+                const stats = await Stats.query().where('player_username', username);
+                for (var i = 0; i < stats.length; i++) {
+                    await Killed.query().delete().where('killer_stats_id', stats[i].id);
+                }
+                await Stats.query().delete().where('player_username', username);
+                await Role.query().delete().where('player_username', username);
+                await Password.query().delete().where('player_username', username);
+                await Individual.query().delete().where('player_username', username);
+                await Assignment.query().delete().where('player_username', username);
+                return await Player.query().delete().where('username',username);
+                
             }
         },
 
@@ -1031,6 +1057,7 @@ const init = async () => {
                         Joi.object({
                             name: Joi.string().allow("").required(),
                             color: Joi.string().allow("").required(),
+                            color_name: Joi.string().allow("").required(),
                             team_id: Joi.number().allow(null).required()
                         }).required()
                     )
@@ -1050,27 +1077,34 @@ const init = async () => {
 
                 // loop through all teams
                 for (var i = 0; i < request.payload.length; i++) {
-                    // if the team exists already, patch it in case changes have been made
+                    var color_name = request.payload[i].color_name;
                     var color = request.payload[i].color;
                     if (!color) {
-                        color = color_options.pop();
+                        color_option = color_options.pop();
+                        color_name = color_option.name;
+                        color = color_option.color;
                     }
                     
-                    while (color_array.includes(color)) {
-                        color = color_options.pop();
+                    while (color_array.includes(color_name)) {
+                        color_option = color_options.pop();
+                        color_name = color_option.name;
+                        color = color_option.color;
                     }
 
+                    // if the team exists already, patch it in case changes have been made
                     if (request.payload[i].team_id) {
                         id_array.push({team_id: request.payload[i].team_id, game_id: request.params.game_id});
-                        var team = await Team.query().patchAndFetchById(request.payload[i].team_id, {name: request.payload[i].name, color: color});
+
+                        var team = await Team.query().patchAndFetchById(request.payload[i].team_id, {name: request.payload[i].name, color: color, color_name: color_name});
+                        
                         final_team_array.push(team);
-                        color_array.push(color);
+                        color_array.push(color_name);
                     }
 
                     // if the team does not exist
                     else {
-                        new_team_array.push({name: request.payload[i].name, color: color});
-                        color_array.push(color);
+                        new_team_array.push({name: request.payload[i].name, color: color, color_name: color_name});
+                        color_array.push(color_name);
                     }
                 }
 
@@ -1270,6 +1304,17 @@ const init = async () => {
             },
             handler: async (request, h) => {
                 return await Team.query().where('used', true);
+            }
+        },
+
+        {
+            method: 'GET',
+            path: '/teams',
+            config: {
+                description: "Get all teams with their players"
+            },
+            handler: async (request, h) => {
+                return await Team.query().where('used', true).withGraphFetched('players');
             }
         },
 

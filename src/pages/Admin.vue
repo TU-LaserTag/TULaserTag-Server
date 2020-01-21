@@ -20,9 +20,9 @@
             </v-card>
         </v-layout>
         <v-toolbar flat fluid v-if=signedIn>
-            <span class='pa-2' style='font-size:32px'> Hello, <span style='font-style:italic'>{{username}}!</span></span>    
+            <span class='pa-2' style='font-size:24px'> Hello, <span style='font-style:italic'>{{username}}!</span></span>    
             <v-spacer />
-            <span class=mr-12><font style=font-size:28px>Options:</font></span>
+            <span class=mr-6><font style=font-size:24px>Options:</font></span>
 
             <v-btn class=ma-2 color="#61578b" raised v-on:click="viewTeams">
                 <font color="white">Teams</font>
@@ -54,6 +54,9 @@
                 <div v-if="(table == 'players')">
                     <player-table></player-table>
                 </div>
+                <div v-if="(table == 'teams')">
+                    <team-table></team-table>
+                </div>
             </v-layout>
         </v-row>
 
@@ -62,8 +65,9 @@
 
 <script>
 import PlayerTable from "../components/PlayerTable";
+import TeamTable from "../components/TeamTable";
 export default {
-    components: {PlayerTable},
+    components: {PlayerTable, TeamTable},
     data: function() {
         return {
             signedIn: true, // CHANGE TO FALSE WHEN DONE
@@ -98,7 +102,7 @@ export default {
             })
         },
         viewTeams() {
-            console.log("Teams worked");
+            this.table = "teams"
         },
         viewGames() {
             console.log("Games worked");

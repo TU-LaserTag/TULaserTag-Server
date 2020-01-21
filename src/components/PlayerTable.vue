@@ -4,9 +4,12 @@
             <v-card-title>
                 <v-row>
                     <v-col cols=2>
+                        <v-btn color="#61578b" raised v-on:click="addPlayer">
+                        <font color=white>Add Player</font>
+                        </v-btn>
                     </v-col>
                     <v-col>
-                        <v-layout justify-center>Player Table</v-layout>
+                        <v-layout justify-center><h3>Player Table</h3></v-layout>
                     </v-col>
                     <v-col cols=2>
                         <v-text-field class="pt-0 mt-0" v-model="search" label="Search" single-line hide-details ></v-text-field>
@@ -15,7 +18,7 @@
             </v-card-title>
             <v-data-table v-bind:headers="player_headers" v-bind:items="players" v-bind:search="search">
                 <template slot="no-data">
-                    <div>No data for game</div>
+                    <div>No players found</div>
                 </template>
                 <template slot="no-results">
                     <div>No options found for search</div>
@@ -36,12 +39,12 @@
                     </v-icon>
                 </template>
                 <template v-slot:item.editPlayer="{ item }">
-                    <v-icon color="#ae936c" small title="Delete" @click='editPlayerInfo(item)'>
+                    <v-icon color="#ae936c" medium title="Edit" @click='editPlayerInfo(item)'>
                         mdi-lead-pencil
                     </v-icon>
                 </template>
                 <template v-slot:item.deletePlayer="{ item }">
-                    <v-icon color="#ae936c" small title="Edit" @click='deletePlayer(item)'>
+                    <v-icon color="#ae936c" medium title="Delete" @click='deletePlayer(item)'>
                         mdi-delete
                     </v-icon>
                 </template>
@@ -52,7 +55,9 @@
             <v-dialog persistent v-model="edit_player_visible" max-width=500px>
                 <v-card>
                     <v-card-title>
-                        Edit Player Table
+                        <v-layout justify-center>
+                        {{action}} Player
+                        </v-layout>
                     </v-card-title>
                     <v-form v-model="valid">
                         <v-card-text>
@@ -67,7 +72,7 @@
                         </v-card-text>
                         <v-card-actions>
                             <v-spacer />
-                            <v-btn v-on:click="patchPlayer" :disabled="!valid">Submit</v-btn>
+                            <v-btn v-on:click="submitPlayer" :disabled="!valid">Submit</v-btn>
                             <v-btn v-on:click="cancel">Cancel</v-btn>
                         </v-card-actions>
                     </v-form>
@@ -98,7 +103,8 @@ export default {
                 v => !!v || 'Username is required'
             ],
             valid: false,
-            message: ""
+            message: "",
+            action: ""
         }
     },
     mounted: function () {
@@ -121,22 +127,99 @@ export default {
     methods: {
         editPlayerInfo(player) {
             this.selectedPlayer = JSON.parse(JSON.stringify(player));
+            this.action = "Edit";
             this.edit_player_visible = true;
         },
         deletePlayer(player) {
-            console.log("Delete " + player);
+            if (!confirm(`Are you sure you want to delete ${player.username} and all database items associated with this user?`)) {
+                return;
+            }
+            this.$axios.delete(`player/${player.username}`).then(this.refresh());
         },
-        newPlayer() {
-            console.log("Refresh data");
+        addPlayer() {
+            this.selectedPlayer = {};
+            this.action = "New";
+            this.edit_player_visible = true;
+        },
+        postPlayer() {
+            this.$axios.post(`create/player`, {
+                player_username: this.selectedPlayer.username,
+                password: this.selectedPlayer.password,
+                admin: this.selectedPlayer.admin,
+                possible_host: this.selectedPlayer.possible_host,
+                team_captain: this.selectedPlayer.team_captain
+            }).then((response) => {
+                if (response.status == 200) {
+                    if (response.data.ok) {
+                        this.selectedPlayer = {};
+                        this.refresh();
+                        this.message = "";
+                        this.edit_player_visible = false;
+                    }
+                    else {
+                        this.message = response.data.message;
+                    }
+                }
+                else {
+                    this.message = "Error occurred. Please ensure all fields have valid input";
+                }
+            }).catch(() => {
+                this.message = "Error occurred. Please ensure all fields have valid input";
+            })
         },
         patchPlayer() {
-            
-            
-            this.edit_player_visible = false;
-            console.log("Nice try");
+            const id = this.selectedPlayer.id
+            const old_username = this.players[id].username;
+            this.$axios.patch(`change/player/${old_username}`, {
+                player_username: this.selectedPlayer.username,
+                password: this.selectedPlayer.password,
+                admin: this.selectedPlayer.admin,
+                possible_host: this.selectedPlayer.possible_host,
+                team_captain: this.selectedPlayer.team_captain
+            }).then((response) => {
+                if (response.status == 200) {
+                    if (response.data.ok) {
+                        this.selectedPlayer = {};
+                        this.refresh();
+                        this.message = "";
+                        this.edit_player_visible = false;
+                    }
+                    else {
+                        this.message = response.data.message;
+                    }
+                }
+                else {
+                    this.message = "Error occurred. Please ensure all fields have valid input";
+                }
+            }).catch(() => {
+                this.message = "Error occurred. Please ensure all fields have valid input";
+            })
+        },
+        submitPlayer() {
+            if (this.action == "Edit") this.patchPlayer();
+            else this.postPlayer();
         },
         cancel() {
+            this.message = "";
+            this.selectedPlayer = {};
             this.edit_player_visible = false;
+        },
+        refresh() {
+            this.$axios.get('players').then(response => {
+            const player_list = response.data;
+            var players = [];
+            for (var i = 0; i < player_list.length; i++) {
+                players.push({
+                    id: i,
+                    username: response.data[i].username,
+                    password: response.data[i].password.password,
+                    admin: response.data[i].roles.admin,
+                    possible_host: response.data[i].roles.possible_host,
+                    team_captain: response.data[i].roles.team_captain
+                });
+            }
+            this.players = players;
+            });
         }
     }
 }

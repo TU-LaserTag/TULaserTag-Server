@@ -11,7 +11,7 @@
             <v-col>
                 <v-row class="align-center justify-baseline">
                     <p class="mt-4" style="color:white; font-size:18px">Visit Taylor:</p>
-                    <div><v-btn fab class="ms-2" color="#209cee" href="https:/taylor.edu"><v-avatar><v-img :src="item.src"></v-img></v-avatar></v-btn></div>
+                    <div><v-btn fab class="ms-2" color="#209cee" href="https:/taylor.edu" target="_blank"><v-avatar><v-img :src="item.src"></v-img></v-avatar></v-btn></div>
                 </v-row>
             </v-col>
         </v-row>
