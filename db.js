@@ -341,14 +341,22 @@ const init = async () => {
 
                 // individual match: person needs to choose a color before we can continue
                 if (num_teams == 0) {
-                    // create a stats page for them if none have been created yet
+                    // create a stats page and individual object for them if none have been created yet
                     const stats = await Stats.query().where('game_id', request.params.game_id).andWhere('player_username', request.params.username);
+                    const individual = await Individual.query().where('game_id', request.params.game_id).andWhere('player_username', request.params.username);
                     if (stats.length == 0) {
+                        if (individual.length == 0) {
+                            await Individual.query().insert({game_id: nextGame.id, player_username: request.params.username});
+                        }
                         await Stats.query().insert({game_id: nextGame.id, player_username: request.params.username, remaining_lives: nextGame.maxLives, style: nextGame.style, num_teams: 0, team_color: "", gun_id: gun_id});
                     }
                     else {
                         await Stats.query().patch({gun_id: gun_id}).where('player_username',request.params.username).andWhere('game_id', request.params.game_id);
+                        if (individual.length == 0) {
+                            await Individual.query().insert({game_id: nextGame.id, player_username: request.params.username});
+                        }
                         if (stats.team_color != "") {
+                            await Individual.patch({color: stats.team_color}).where('game_id', request.params.game_id).andWhere('player_username', request.params.username);
                             return {ok: true, game: nextGame, team: null, needColor: false, needName: false};
                         }
                     }
@@ -597,17 +605,13 @@ const init = async () => {
                 username = request.params.username;
                 
                 player_id = -1;
-                console.log(game);
                 // ensure the individual is signed up for the game and his color is unique
                 for (var i = 0; i < game.individuals.length; i++) {
-                    if (game.individuals[i].color == request.payload.color) {
-                        return {ok: false, message: "Duplicate color"};
-                    }
-
                     if (game.individuals[i].player_username == username) {
-                        console.log("Roger " + i);
                         player_id = i;
-                        break;
+                    }
+                    else if (game.individuals[i].color == request.payload.color) {
+                        return {ok: false, message: "Duplicate color"};
                     }
                 }
                 // ensure the Stats object for the player is updated accordingly
@@ -623,7 +627,7 @@ const init = async () => {
                 // otherwise
                 else {
                     // make sure info is correct
-                    await Individual.query().patch({color: request.payload.color}).where('player_username', username).andWhere('game_id',game.id);
+                    await Individual.query().patch({color: request.payload.color}).where('player_username', username).andWhere('game_id', game.id);
                     // return information
                     return {ok: true};
                 }
@@ -1038,21 +1042,26 @@ const init = async () => {
                 description: 'Creates a team',
                 validate: {
                     payload: Joi.object({
-                        name: Joi.string().allow("").required(),
-                        color: Joi.string().allow("").required()
+                        name: Joi.string().required(),
+                        captain: Joi.string().allow("").allow(null).required(),
+                        primaryColor: Joi.string().allow("").allow(null).required(),
+                        secondaryColor: Joi.string().allow("").allow(null).required()
                     })
                 }
             },
             handler: async (request, h) => {
-                return await Team.query().insert({name: request.payload.name, color: request.payload.color, used: true});
+                if (!request.payload.captain) {
+                    return await Team.query().insert({name: request.payload.name, captain: request.payload.captain, primaryColor: request.payload.primaryColor, secondaryColor: request.payload.secondaryColor, used: true});
+                }
+                return await Team.query().insert({name: request.payload.name, captain: request.payload.captain, primaryColor: request.payload.primaryColor.toLowerCase(), secondaryColor: request.payload.secondaryColor.toLowerCase(), used: true});
             }
         },
 
-        { //TODO check whether this actually handles duplicate colors or whether it does not work
+        {
             method: 'POST',
             path: '/createbatch/team/{game_id}',
             config: {
-                description: 'Creates many teams at once and assigns them to a game',
+                description: 'Creates many teams at once and assigns them to a game - used when creating quick games',
                 validate: {
                     payload: Joi.array().items(
                         Joi.object({
@@ -1123,7 +1132,7 @@ const init = async () => {
             }
         },
 
-        { // TODO: change to make leagues work
+        {
             method: 'PATCH',
             path: '/change/team/{id}',
             config: {
@@ -1131,12 +1140,53 @@ const init = async () => {
                 validate: {
                     payload: Joi.object({
                         name: Joi.string().allow("").required(),
-                        color: Joi.string().allow("").required()
+                        primaryColor: Joi.string().allow("").allow(null).required(),
+                        secondaryColor: Joi.string().allow("").allow(null).required(),
+                        captain: Joi.string().allow("").allow(null).required()
                     })
                 }
             },
             handler: async (request, h) => {
-                return await Team.query().patch({name: request.payload.name, color: request.payload.color, used: true}).where('id', request.params.id);
+                if (!request.payload.captain) {
+                    return await Team.query().patch({name: request.payload.name, captain: request.payload.captain, primaryColor: request.payload.primaryColor, secondaryColor: request.payload.secondaryColor, used: true}).where('id', request.params.id);
+                }
+                return await Team.query().patch({name: request.payload.name, captain: request.payload.captain, primaryColor: request.payload.primaryColor.toLowerCase(), secondaryColor: request.payload.secondaryColor.toLowerCase(), used: true}).where('id', request.params.id);
+            }
+        },
+
+        {
+            method: 'GET',
+            path: '/players/notonteam/{id}',
+            config: {
+                description: 'Gets all players not on a certain team'
+            },
+            handler: async (request, h) => {
+                const players = await Player.query();
+                const team = await Team.query().where('id', request.params.id).withGraphFetched('players').first();
+                console.log(players);
+                for (var i = 0; i < team.players.length; i++) {
+                    console.log(players);
+                    players.splice(team.players[i], 1);
+                }
+                console.log(players);
+                return players;
+            }
+        },
+
+        {
+            method: 'DELETE',
+            path: '/team/{id}',
+            config: {
+                description: 'Deletes a team and all associated foreign keys'
+            },
+            handler: async (request, h) => {
+                team_id = request.params.id;
+                await Contest.query().delete().where('team_id', team_id);
+                await Assignment.query().delete().where('team_id', team_id);
+                await Team.query().delete().where('id', team_id);
+                const teams = await Team.query().where('used', true);
+                return teams;
+
             }
         },
 
@@ -1181,7 +1231,7 @@ const init = async () => {
                         maxammo: Joi.number().required(),
                         style: Joi.string().required(),
                         timedisabled: Joi.number(),
-                        maxLives: Joi.number().positive().required(),
+                        maxLives: Joi.number().required(),
                         pause: Joi.bool(),
                         date: Joi.string(),
                         code: Joi.string().allow(""),
@@ -1207,7 +1257,7 @@ const init = async () => {
                         maxammo: Joi.number().required(),
                         style: Joi.string().required(),
                         timedisabled: Joi.number(),
-                        maxLives: Joi.number().positive().required(),
+                        maxLives: Joi.number().required(),
                         pause: Joi.bool(),
                         date: Joi.string().required(),
                         code: Joi.string().allow(""),
@@ -1431,7 +1481,24 @@ const init = async () => {
                 description: 'Removes a player from a team',
             },
             handler: async (request, h) => {
-                return await Assignment.query().delete().where('player_username', request.player.username).andWhere('team_id', request.params.team_id);
+                return await Assignment.query().delete().where('player_username', request.params.username).andWhere('team_id', request.params.team_id);
+            }
+        },
+
+        {
+            method: 'POST',
+            path: '/assign/player',
+            config: {
+                description: 'Assigns a player to a team',
+                validate: {
+                    payload: Joi.object({
+                        player_username: Joi.string().required(),
+                        team_id: Joi.number().required()
+                    })
+                }
+            },
+            handler: async (request, h) => {
+                return await Assignment.query().insert(request.payload);
             }
         },
 

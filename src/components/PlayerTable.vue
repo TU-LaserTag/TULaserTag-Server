@@ -3,14 +3,17 @@
         <v-card>
             <v-card-title>
                 <v-row>
-                    <v-col cols=2>
+                    <v-col cols=4>
                         <v-btn color="#61578b" raised v-on:click="addPlayer">
-                        <font color=white>Add Player</font>
+                        <font color=white>Add Player</font></v-btn>
+                        <v-btn class="ml-4" color="#61578b" raised v-on:click="refresh">
+                        <font color=white>Refresh</font>
                         </v-btn>
                     </v-col>
-                    <v-col>
+                    <v-col cols=4>
                         <v-layout justify-center><h3>Player Table</h3></v-layout>
                     </v-col>
+                    <v-spacer />
                     <v-col cols=2>
                         <v-text-field class="pt-0 mt-0" v-model="search" label="Search" single-line hide-details ></v-text-field>
                     </v-col>
@@ -134,7 +137,9 @@ export default {
             if (!confirm(`Are you sure you want to delete ${player.username} and all database items associated with this user?`)) {
                 return;
             }
-            this.$axios.delete(`player/${player.username}`).then(this.refresh());
+            this.$axios.delete(`player/${player.username}`).then(() => {
+                this.refresh();
+            })
         },
         addPlayer() {
             this.selectedPlayer = {};
