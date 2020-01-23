@@ -1174,6 +1174,22 @@ const init = async () => {
         },
 
         {
+            method: 'GET',
+            path: '/teams/notingame/{id}',
+            config: {
+                description: 'Gets all players not on a certain team'
+            },
+            handler: async (request, h) => {
+                const teams = await Team.query().where('used', true);
+                const game = await Game.query().where('id', request.params.id).withGraphFetched('teams').first();
+                for (var i = 0; i < game.teams.length; i++) {
+                    teams.splice(game.teams[i], 1);
+                }
+                return teams;
+            }
+        },
+
+        {
             method: 'DELETE',
             path: '/team/{id}',
             config: {
@@ -1470,7 +1486,7 @@ const init = async () => {
                 description: 'Removes a player from a game',
             },
             handler: async (request, h) => {
-                return await Stats.query().delete().where('player_username', request.player.username).andWhere('game_id', request.params.game_id);
+                return await Stats.query().delete().where('player_username', request.params.username).andWhere('game_id', request.params.game_id);
             }
         },
 
@@ -1531,8 +1547,53 @@ const init = async () => {
                 description: "Gets a certain game and its stats"
             },
             handler: async (request, h) => {
-                const game = await Game.query().where('id', request.params.game_id).withGraphFetched('stats.[killed, gun]').withGraphFetched('teams.players').withGraphFetched('announcement');
-                return game;
+                const game = await Game.query().where('id', request.params.game_id).withGraphFetched('stats.[killed, gun]').withGraphFetched('teams.players').withGraphFetched('announcement').first();
+                time = "";
+                console.log(game.date, createDate().date);
+                if (game.date == createDate().date) {
+                    console.log("The effort is here" + game.date + " " + createDate().date)
+                    const endtime = game.endtime;
+                    const end_time_array = endtime.split(":");
+                    const current_time_array = createDate().time.split(":");
+                    var time_left = 0
+                    for (var j = 0; j < 3; j++) {
+                        //calculates remaining time in seconds until game starts; starts with seconds and goes up to hours
+                        time_left += (Math.pow(60, j))*(Number(end_time_array[2-j]) - Number(current_time_array[2-j]));
+                    }
+                    // convert back to HH:MM:SS
+                    var hours = Math.floor(time_left / 3600);
+                    time_left %= 3600;
+                    var minutes = Math.floor(time_left/60);
+                    if (minutes < 10) minutes = "0" + minutes
+                    var seconds = time_left % 60;
+                    if (seconds < 10) seconds = "0" + seconds
+                    time = hours + ":" + minutes + ":" + seconds;
+                }
+                else {
+                    time = null
+                }
+                return {game: game, time: time};
+            }
+        },
+
+        {
+            method: 'DELETE',
+            path: '/game/{id}',
+            config: {
+                description: "Deletes a game and all its data"
+            },
+            handler: async (request, h) => {
+                game_id = request.params.id;
+                stats = await Stats.query().where('game_id', game_id);
+                for (var i = 0; i < stats.length; i++) {
+                    await Killed.query().delete().where('killer_stats_id', stats[i].id);
+                }
+                await Stats.query().delete().where('game_id', game_id);
+                await Individual.query().delete().where('game_id', game_id);
+                await Contest.query().delete().where('game_id', game_id);
+                await Hit.query().delete().where('game_id', game_id);
+                await Announcement.query().delete().where('game_id', game_id);
+                return await Game.query().deleteById(game_id);
             }
         },
 
@@ -1544,6 +1605,17 @@ const init = async () => {
             },
             handler: async (request, h) => {
                 return await Game.query().where('locked', false);
+            }
+        },
+
+        {
+            method: 'GET',
+            path: '/games/locked',
+            config: {
+                description: "Gets all upcoming games"
+            },
+            handler: async (request, h) => {
+                return await Game.query().where('locked', true);
             }
         },
 
@@ -1591,10 +1663,32 @@ const init = async () => {
         },
 
         {
+            method: 'GET',
+            path: '/announcements/game/{game_id}',
+            config: {
+                description: "Get specific announcements for a game"
+            },
+            handler: async (request, h) => {
+                return await Announcement.query().where('game_id', request.params.game_id);
+            }
+        },
+
+        {
+            method: 'GET',
+            path: '/announcements',
+            config: {
+                description: "Get all announcements"
+            },
+            handler: async (request, h) => {
+                return await Announcement.query();
+            }
+        },
+
+        {
             method: 'POST',
             path: '/announcements',
             config: {
-                description: "Get general announcements",
+                description: "Post an announcement",
                 validate: {
                     payload: Joi.object({
                         announcement: Joi.string().required(),
@@ -1605,6 +1699,35 @@ const init = async () => {
             },
             handler: async (request, h) => {
                 return await Announcement.query().insert(request.payload);
+            }
+        },
+
+        {
+            method: 'PATCH',
+            path: '/announcements/{id}',
+            config: {
+                description: "Patch an announcement",
+                validate: {
+                    payload: Joi.object({
+                        announcement: Joi.string().required(),
+                        game_id: Joi.number().allow(null).required(),
+                        time: Joi.date().required()
+                    })
+                }
+            },
+            handler: async (request, h) => {
+                return await Announcement.query().patch(request.payload).where('id', request.params.id);
+            }
+        },
+
+        {
+            method: 'DELETE',
+            path: '/announcements/{id}',
+            config: {
+                description: "Delete an announcement"
+            },
+            handler: async (request, h) => {
+                return await Announcement.query().delete().where('id', request.params.id);
             }
         },
 
