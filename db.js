@@ -1550,14 +1550,14 @@ const init = async () => {
                 const game = await Game.query().where('id', request.params.game_id).withGraphFetched('stats.[killed, gun]').withGraphFetched('teams.players').withGraphFetched('announcement').first();
                 time = "";
                 console.log(game.date, createDate().date);
-                if (game.date == createDate().date) {
+                if (game.date == createDate().date && game.endtime) {
                     console.log("The effort is here" + game.date + " " + createDate().date)
                     const endtime = game.endtime;
                     const end_time_array = endtime.split(":");
                     const current_time_array = createDate().time.split(":");
                     var time_left = 0
                     for (var j = 0; j < 3; j++) {
-                        //calculates remaining time in seconds until game starts; starts with seconds and goes up to hours
+                        //calculates remaining time in seconds until game ends; starts with seconds and goes up to hours
                         time_left += (Math.pow(60, j))*(Number(end_time_array[2-j]) - Number(current_time_array[2-j]));
                     }
                     // convert back to HH:MM:SS
