@@ -199,7 +199,6 @@ export default {
                     players.push(player_list[j].username);
                 }
                 teams.push({
-                    index: i,
                     id: response.data[i].id,
                     name: response.data[i].name,
                     captain: response.data[i].captain,
@@ -390,7 +389,6 @@ export default {
                         players.push(player_list[j].username);
                     }
                     teams.push({
-                        index: i,
                         id: response.data[i].id,
                         name: response.data[i].name,
                         captain: response.data[i].captain,

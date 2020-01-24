@@ -57,17 +57,24 @@
                 <div v-if="(table == 'teams')">
                     <team-table></team-table>
                 </div>
+                <div v-if="(table == 'games')">
+                    <game-table></game-table>
+                </div>
+                <div v-if="(table == 'announcements')">
+                    <announcement-table></announcement-table>
+                </div>
             </v-layout>
         </v-row>
-
     </v-container>
 </template>
 
 <script>
 import PlayerTable from "../components/PlayerTable";
 import TeamTable from "../components/TeamTable";
+import AnnouncementTable from "../components/AnnouncementTable";
+import GameTable from "../components/GameTable";
 export default {
-    components: {PlayerTable, TeamTable},
+    components: {PlayerTable, TeamTable, AnnouncementTable, GameTable},
     data: function() {
         return {
             signedIn: true, // CHANGE TO FALSE WHEN DONE
@@ -105,7 +112,7 @@ export default {
             this.table = "teams"
         },
         viewGames() {
-            console.log("Games worked");
+            this.table = "games";
         },
         viewPlayers() {
             this.table = "players"
@@ -117,7 +124,7 @@ export default {
             console.log("Guns worked");
         },
         viewAnnouncements() {
-            console.log("Announcements worked");
+            this.table = "announcements"
         }
     }
 }

@@ -17,7 +17,7 @@ export default new Router({
         {name: "home-page", path: "/", component: Home},
         {name: "admin", path: "/admin/", component: Admin},
         {name: "about-us", path: "/about/", component: About},
-        {name: "scores", path: "/scores/", component: Scores},
+        {name: "scores", path: "/scores/:id", component: Scores},
         {name: "ltc", path: "/ltc/", component: LTC},
         {name: "team-captain", path: "/teamcaptain/", component: TeamCaptain}
     ]

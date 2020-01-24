@@ -5,7 +5,7 @@
           class="py-0"
         >
           
-          <v-list-item color=white v-bind:to="{name: 'scores'}">
+          <v-list-item color=white v-bind:to="{name: 'scores', params: {id: -1}}">
             <v-list-item-icon>
               <v-icon color="#ae936c">mdi-scoreboard-outline</v-icon>
             </v-list-item-icon>

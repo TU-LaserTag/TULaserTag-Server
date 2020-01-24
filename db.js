@@ -233,13 +233,11 @@ const init = async () => {
                 if (player_username == old_username) {
                     await Password.query().patch({password: password}).where('player_username', player_username);
                     await Role.query().patch({admin: admin, possible_host: possible_host, team_captain: team_captain}).where('player_username', player_username);
-                    console.log("Change?");
                     return {ok: true, message: "Player has been updated"}
                 }
                 // otherwise ensure there is not a duplicate
                 const user = await Player.query().where('username', player_username);
                 if (user.length == 0) {
-                    console.log("Definitely");
                     // clear all foreign keys associated with the user
                     await Password.query().patch({player_username: null}).where('player_username', old_username);
 
@@ -1163,12 +1161,15 @@ const init = async () => {
             handler: async (request, h) => {
                 const players = await Player.query();
                 const team = await Team.query().where('id', request.params.id).withGraphFetched('players').first();
-                console.log(players);
+                var usernames = [];
                 for (var i = 0; i < team.players.length; i++) {
-                    console.log(players);
-                    players.splice(team.players[i], 1);
+                    usernames.push(team.players[i].username);
                 }
-                console.log(players);
+                for (var j = players.length-1; j >= 0; j--) {
+                    if (usernames.includes(players[j].username)) {
+                        players.splice(j, 1);
+                    }
+                }
                 return players;
             }
         },
@@ -1182,8 +1183,14 @@ const init = async () => {
             handler: async (request, h) => {
                 const teams = await Team.query().where('used', true);
                 const game = await Game.query().where('id', request.params.id).withGraphFetched('teams').first();
+                var names = [];
                 for (var i = 0; i < game.teams.length; i++) {
-                    teams.splice(game.teams[i], 1);
+                    names.push(game.teams[i].name);
+                }
+                for (var j = teams.length-1; j >= 0; j--) {
+                    if (names.includes(teams[j].name)) {
+                        teams.splice(j, 1);
+                    }
                 }
                 return teams;
             }
@@ -1253,8 +1260,8 @@ const init = async () => {
                         code: Joi.string().allow(""),
                         num_teams: Joi.number().required(),
                         team_selection: Joi.string().required(),
-                        name: Joi.string().allow("").required(),
-                        host: Joi.string().allow("").required()
+                        name: Joi.string().required(),
+                        host: Joi.string().allow(null).required()
                     })
                 }
             },
@@ -1270,22 +1277,22 @@ const init = async () => {
                 description: 'Changes a game',
                 validate: {
                     payload: Joi.object({
-                        maxammo: Joi.number().required(),
-                        style: Joi.string().required(),
+                        maxammo: Joi.number().positive().allow(-1),
+                        style: Joi.string(),
                         timedisabled: Joi.number(),
-                        maxLives: Joi.number().required(),
+                        maxLives: Joi.number().positive().allow(-1),
                         pause: Joi.bool(),
-                        date: Joi.string().required(),
+                        date: Joi.string(),
                         code: Joi.string().allow(""),
                         num_teams: Joi.number().required(),
-                        team_selection: Joi.string().required(),
-                        name: Joi.string().allow("").required(),
-                        host: Joi.string().allow("").required()
+                        team_selection: Joi.string(),
+                        name: Joi.string(),
+                        host: Joi.string().allow(null)
                     })
                 }
             },
             handler: async (request, h) => {
-                return await Game.query().patch(request.payload).where('id',request.params.id).where('locked', false);
+                return await Game.query().patchAndFetchById(request.params.id, request.payload).withGraphFetched('teams');
             }
         },
 
@@ -1525,7 +1532,7 @@ const init = async () => {
                 description: 'Removes a team from a game',
             },
             handler: async (request, h) => {
-                return await Contest.query().delete().where('team_id', request.player.team_id).andWhere('game_id', request.params.game_id);
+                return await Contest.query().delete().where('team_id', request.params.team_id).andWhere('game_id', request.params.game_id);
             }
         },
 
@@ -1549,9 +1556,7 @@ const init = async () => {
             handler: async (request, h) => {
                 const game = await Game.query().where('id', request.params.game_id).withGraphFetched('stats.[killed, gun]').withGraphFetched('teams.players').withGraphFetched('announcement').first();
                 time = "";
-                console.log(game.date, createDate().date);
                 if (game.date == createDate().date && game.endtime) {
-                    console.log("The effort is here" + game.date + " " + createDate().date)
                     const endtime = game.endtime;
                     const end_time_array = endtime.split(":");
                     const current_time_array = createDate().time.split(":");
@@ -1559,6 +1564,9 @@ const init = async () => {
                     for (var j = 0; j < 3; j++) {
                         //calculates remaining time in seconds until game ends; starts with seconds and goes up to hours
                         time_left += (Math.pow(60, j))*(Number(end_time_array[2-j]) - Number(current_time_array[2-j]));
+                    }
+                    if (time_left < 0) {
+                        return {game: game, time: time};
                     }
                     // convert back to HH:MM:SS
                     var hours = Math.floor(time_left / 3600);
@@ -1604,7 +1612,7 @@ const init = async () => {
                 description: "Gets all upcoming games"
             },
             handler: async (request, h) => {
-                return await Game.query().where('locked', false);
+                return await Game.query().where('locked', false).withGraphFetched('teams');
             }
         },
 
@@ -1615,7 +1623,10 @@ const init = async () => {
                 description: "Gets all upcoming games"
             },
             handler: async (request, h) => {
-                return await Game.query().where('locked', true);
+                games = await Game.query().where('locked', true);
+                for (var i = 0; i < games.length; i++) {
+                }
+                return games;
             }
         },
 
@@ -1739,6 +1750,24 @@ const init = async () => {
             },
             handler: async (request, h) => {
                 return await Player.query().withGraphFetched('password').withGraphFetched('roles');
+            }
+        },
+
+        {
+            method: 'GET',
+            path: '/hosts',
+            config: {
+                description: "Gets all hosts"
+            },
+            handler: async (rqeuest, h) => {
+                var players = await Player.query().withGraphFetched('roles');
+                for (var i = 0; i < players; i++) {
+                    if (!players.roles.possible_host) {
+                        players.splice(i, 1);
+                    }
+                }
+                console.log(players);
+                return players;
             }
         }
     ]);

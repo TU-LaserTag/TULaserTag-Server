@@ -1,62 +1,60 @@
 <template>
-    <v-select :items="games" label="Select a game to view" v-model="key" v-on:change="selectGame" solo></v-select>
+    <v-select :items="game_ids" label="Select a game" v-model="key" v-on:change="selectGameId" solo></v-select>
 </template>
 
 <script>
 export default {
-    props: ["selectedGame"],
+    props: ["id"],
+    watch: {
+        id(newId) {
+            this.key = newId;
+            if (this.game_ids.length == 0) {
+                this.startup = true;
+            }
+            else if (newId == -1) {
+                this.game_ids.shift();
+            }
+            else if (this.game_ids[0].value) {
+                this.game_ids.unshift({
+                    text: "",
+                    value: 0,
+                    teams: false,
+                    table: false
+                });
+            }
+        },
+    },
     data: function() {
         return {
-            games: [],
-            selection: {
-                key: "",
-                value: ""
-            }
-        }
-    },
-    computed: {
-        key: {
-            get: function() {
-                return this.selection;
-            },
-            set: function(value) {
-                this.selection.key = value;
-            }
+            game_ids: [],
+            key: this.id,
+            startup: false
         }
     },
     mounted: function() {
-        this.$axios.get("allgames").then(response => {
-            this.games = response.data.map(game => ({
-                text: `${game.name}`,
-                value: game.id,
-                starttime: game.starttime,
-                endtime: game.endtime,
-                maxammo: game.maxammo,
-                style: game.style,
-                timedisabled: game.timedisabled,
-                maxLives: game.maxLives,
-                pause: game.pause,
-                winners: game.winners,
-                date: game.date,
-                num_teams: game.num_teams,
-                players_alive: game.players_alive,
-                teams_alive: game.teams_alive,
-                name: game.name,
-                host: game.host
+        this.$axios.get("games/locked").then(response => {
+            this.game_ids = response.data.map((game) => ({
+               text: `${game.name}`,
+               value: game.id,
+               teams: game.num_teams != 0,
+               table: true
             }));
+            if (this.startup) {
+            this.game_ids.unshift({
+                    text: "",
+                    value: 0,
+                    teams: false,
+                    table: false
+            });
+        }
         });
     },
     methods: {
-        selectGame() {
-            let selection = "";
-            for (let i = 0; i < this.games.length; i++) {
-                if (this.games[i].value === this.selection.key) {
-                    selection = this.games[i];
-                    this.selection;
-                    break;
-                }
-            }
-            this.$emit('selection', selection);
+        selectGameId() {
+            const index = this.game_ids.findIndex((game_id) => {
+                return game_id.value === this.key;
+            })
+            this.$emit('selection', this.game_ids[index]);
         }
     }
 }
