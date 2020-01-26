@@ -1459,7 +1459,12 @@ const init = async () => {
             },
             handler: async (request, h) => {
                 guns = await Gun.query();
-                return await Gun.query().insert({mac_address: request.payload.mac_address, id: guns.length+1});
+                duplicateGun = await Gun.query().where('mac_address', request.payload.mac_address);
+                if (duplicateGun.length > 0) {
+                    return {ok: false, message: "Duplicate Mac Address"}
+                }
+                await Gun.query().insert({mac_address: request.payload.mac_address, id: guns.length+1});
+                return {ok: true};
             }
         },
 
@@ -1471,7 +1476,8 @@ const init = async () => {
                 validate: {
                     payload: Joi.array().items(
                         Joi.object({
-                            gun_id: Joi.number().required(),
+                            current_gun_id: Joi.number().required(),
+                            new_gun_id: Joi.number().required(),
                             mac_address: Joi.string().required()
                         })
                     )
@@ -1479,10 +1485,50 @@ const init = async () => {
             },
             handler: async (request, h) => {
                 list_of_guns = [];
-                for (var i = 0; i < request.payload.length; i++) {
-                    list_of_guns.push(await Gun.query().patchAndFetchById(request.payload[i].id, {gund_id: reqest.payload[i].gun_id}));
+                guns = await Gun.query();
+                for (var h = 0; h < request.payload.length; h++) {
+                    await Gun.query().insert({id: guns.length+h+1, mac_address: `TEMP${h}`});
                 }
-                return list_of_guns;
+                for (var i = 0; i < request.payload.length; i++) {
+                    await Stats.query().patch({gun_id: guns.length+i+1}).where('gun_id', request.payload[i].current_gun_id);
+                    await Gun.query().patch({mac_address: request.payload[i].mac_address}).where('id', request.payload[i].new_gun_id);
+                }
+                for (var j = 0; j < request.payload.length; j++) {
+                    await Stats.query().patch({gun_id: request.payload[j].new_gun_id}).where('gun_id', guns.length+j+1);
+                    await Gun.query().delete().where('id', guns.length+j+1);
+                }
+
+                return {ok: true};
+            }
+        },
+
+        {
+            method: 'PATCH',
+            path: '/gun',
+            config: {
+                description: 'Edits a gun for use',
+                validate: {
+                    payload: Joi.object({
+                        gun_id: Joi.number().required(),
+                        mac_address: Joi.string().required()
+                    })
+                }
+            },
+            handler: async (request, h) => {
+                return await Gun.query().patch({mac_address: request.payload.mac_address}).where('id', request.payload.gun_id);
+            }
+        },
+
+        {
+            method: 'GET',
+            path: '/guns',
+            config: {
+                description: 'Gets two lists of guns: the used ones and the unused ones'
+            },
+            handler: async (request, h) => {
+                const used_list = await Gun.query().where('id', '<', 65);
+                const not_used_list = await Gun.query().where('id', '>', 64);
+                return {used_list, not_used_list};
             }
         },
 
