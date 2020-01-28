@@ -8,9 +8,13 @@
                         <v-btn outlined color=#61578b @click='refresh()'>Refresh</v-btn>
                         </v-layout>
                     </v-col>
-                    <v-col>
-                        <v-layout justify-center> {{name}} </v-layout>
+                    <v-col cols=2>
+                        <v-layout justify-center><span v-if="(time && !(winners))" style="font-size:18px">Time Left: {{time}}</span><span v-if=winners style="font-size:18px">Winner(s): {{this.winners.toString()}}</span></v-layout>
                     </v-col>
+                    <v-col cols=4> 
+                        <v-layout justify-center><span style="font-size:32px">{{name}}</span></v-layout>
+                    </v-col>
+                    <v-spacer />
                     <v-col cols=2>
                         <v-text-field class="pt-0 mt-0" v-model="search" label="Search" single-line hide-details ></v-text-field>
                     </v-col>
@@ -59,14 +63,16 @@ export default {
                 {text: "Ammunition fired", value: "rounds_fired"},
                 {text: "Color", value: "color"},
                 {text: "Players Killed", value: "killed"},
-                {text: "Time Left", value: "time_left"},
                 {text: "Gun", value: "gun"},
                 {text: "More Stats", value: "moreStats"}
             ],
             search: "",
             players: [],
             game_id: this.id,
-            name: ""
+            name: "",
+            time: "",
+            winners: null,
+
         }
     },
     methods: {
@@ -83,6 +89,7 @@ export default {
             }
             this.$axios.get(`game/info/${this.game_id}`).then(response => {
                 this.name = response.data.game.name;
+                this.time = response.data.time;
                 const stats = response.data.game.stats;
                 var players = [];
                 for (var i = 0; i < stats.length; i++) {
@@ -98,7 +105,6 @@ export default {
                         rounds_fired: stats[i].rounds_fired,
                         killed: killed,
                         color: stats[i].team_color,
-                        time_left: response.data.time,
                         gun: stats[i].gun.mac_address
                     })
                 }

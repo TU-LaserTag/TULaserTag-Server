@@ -9,7 +9,7 @@
                         </v-layout>
                     </v-col>
                     <v-col cols=2>
-                        <v-layout justify-center><span style="font-size:18px">Time Left: {{time}}</span></v-layout>
+                        <v-layout justify-center><span v-if="(time && !(winners))" style="font-size:18px">Time Left: {{time}}</span><span v-if=winners style="font-size:18px">Winner(s): {{this.winners.toString()}}</span></v-layout>
                     </v-col>
                     <v-col cols=4> 
                         <v-layout justify-center><span style="font-size:32px">{{name}}</span></v-layout>
@@ -37,6 +37,32 @@
                 </template>
             </v-data-table>
         </v-card>
+
+        <div>
+            <v-dialog persistent v-model="show_stats_visible" max-width=500px>
+                <v-card>
+                    <v-card-title>
+                        <v-layout justify-center>{{selectedStats.player_username}}'s Stats</v-layout>
+                    </v-card-title>
+                    <v-list-item>
+                        <v-list-item-content>Hits: {{otherStats.hits}}</v-list-item-content>
+                    </v-list-item>
+                    <v-list-item>
+                        <v-list-item-content>Max Kill Streak: {{otherStats.killStreak}}</v-list-item-content>
+                    </v-list-item>
+                    <v-list-item>
+                        <v-list-item-content>Hit Table: {{otherStats.attackDictionary}}</v-list-item-content>
+                    </v-list-item>
+                    <v-list-item>
+                        <v-list-item-content>Hit By Table: {{otherStats.attackedDictionary}}</v-list-item-content>
+                    </v-list-item>
+                    <v-card-actions>
+                        <v-spacer />
+                            <v-btn v-on:click="done">Done</v-btn>
+                    </v-card-actions>
+                </v-card>
+            </v-dialog>
+        </div>
     </div>
 </template>
 
@@ -56,6 +82,8 @@ export default {
     },
     data: function() {
         return {
+            selectedStats: {},
+            otherStats: {},
             game_headers: [
                 {text: "Name", value: "player_username"},
                 {text: "Points", value: "points"},
@@ -70,12 +98,25 @@ export default {
             search: "",
             players: [],
             game_id: this.id,
-            name: ""
+            name: "",
+            time: "",
+            winners: null,
+            show_stats_visible: false
         }
     },
     methods: {
         showStats(item) {
-            console.log(item);
+            this.show_stats_visible = true;
+            this.selectedStats = item;
+            this.$axios.get(`morestats/${item.player_username}/${this.game_id}`).then(response => {
+                this.otherStats = response.data;
+                console.log(this.otherStats);
+            })
+        },
+        done() {
+            this.show_stats_visible = false;
+            this.selectedStats = {};
+            this.otherStats = {};
         },
         refresh() {
             this.setPlayers();
@@ -88,6 +129,7 @@ export default {
             this.$axios.get(`game/info/${this.game_id}`).then(response => {
                 this.name = response.data.game.name;
                 this.time = response.data.time;
+                this.winners = response.data.game.winners;
                 const stats = response.data.game.stats;
                 var players = [];
                 for (var i = 0; i < stats.length; i++) {
@@ -102,7 +144,6 @@ export default {
                         remaining_lives: stats[i].remaining_lives,
                         rounds_fired: stats[i].rounds_fired,
                         killed: killed,
-                        time_left: response.data.time,
                         gun: stats[i].gun.mac_address,
                         team_name: stats[i].team_name,
                         team_color: stats[i].team_color

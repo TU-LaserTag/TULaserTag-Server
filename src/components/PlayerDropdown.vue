@@ -17,7 +17,7 @@ export default {
         }
     },
     mounted: function() {
-        this.$axios.get("players").then(response => {
+        this.$axios.get("captains").then(response => {
             this.players = response.data.map(player => ({
                 text: player.username,
                 value: player.username,

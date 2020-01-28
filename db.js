@@ -659,15 +659,12 @@ const init = async () => {
 
                 // get data from hits recorded on hits page
                 const hitStats = game[0].actions;
-                var hits = [];
-                var kills = [];
+                var hitlist = [];
+
                 // place data into two arrays
                 for (var i = 0; i < hitStats.length; i++) {
                     if (Number(hitStats[i].time) <= Number(request.params.timestamp)){
-                        if (hitStats[i].kill) {
-                            kills.push({person: hitStats[i].person_hit, team: hitStats[i].team_person_hit});
-                        }
-                        else hits.push({person: hitStats[i].person_hit, team: hitStats[i].team_person_hit});
+                        hitlist.push({person: hitStats[i].person_hit, team: hitStats[i].team_person_hit, kill: hitStats[i].killed});
                     }
                 }
                 // update number of rounds fired
@@ -681,7 +678,7 @@ const init = async () => {
                 if (game_over) winners = [game[0].winners];
                 
                 // return data to user
-                return {points: userStats.points, hitDictionary: {hits: hits, kills: kills}, game_over: game_over, winners: winners}
+                return {points: userStats.points, hitlist: hitlist, game_over: game_over, winners: winners}
             }
         },
 
@@ -713,20 +710,12 @@ const init = async () => {
                 // get data from hits recorded on hits page
                 const hitStats = game[0].actions;
 
-                var hits = [];
-                var kills = [];
+                var hitlist = [];
 
                 // obtain data on who has been hit
                 for (var i = 0; i < hitStats.length; i++) {
                     if (Number(hitStats[i].time) <= Number(request.params.timestamp)){
-                        if (hitStats[i].kill) {
-                            // if the hit was a kill, place in the kills list
-                            kills.push({person: hitStats[i].person_hit});
-                        }
-                        else {
-                            // if the hit was not a kill, place in the hits list
-                            hits.push({person: hitStats[i].person_hit});
-                        }
+                        hitlist.push({person: hitStats[i].person_hit, kill: hitStats[i].killed});
                     }
                 }
 
@@ -741,7 +730,7 @@ const init = async () => {
                 if (game_over) winners = [game[0].winners];
 
                 // return data to user
-                return {points: userStats.points, hitDictionary: {hits: hits, kills: kills}, game_over: game_over, winners: winners}
+                return {points: userStats.points, hitlist: hitlist, game_over: game_over, winners: winners}
             }
         },
 
@@ -1270,7 +1259,7 @@ const init = async () => {
             }
         },
 
-        { //TODO check if return is an issue
+        {
             method: 'PATCH',
             path: '/change/game/{id}',
             config: {
@@ -1354,7 +1343,7 @@ const init = async () => {
                 //updates game object and locks game for start
                 await Game.query().patch({locked: true, starttime: start_time_string, endtime: end_time_string, date: date.date, players_alive: game.stats.length, teams_alive: teams_alive}).where('id',request.payload.id)
 
-                //returns that everything is good to go and the number of seconds until the start of the game, in case it is different from the seconds requested
+                //returns that everything is good to go
                 return {ok: true};
             }
         },
@@ -1666,13 +1655,10 @@ const init = async () => {
             method: 'GET',
             path: '/games/locked',
             config: {
-                description: "Gets all upcoming games"
+                description: "Gets all current and past games"
             },
             handler: async (request, h) => {
-                games = await Game.query().where('locked', true);
-                for (var i = 0; i < games.length; i++) {
-                }
-                return games;
+                return await Game.query().where('locked', true);
             }
         },
 
@@ -1801,19 +1787,76 @@ const init = async () => {
 
         {
             method: 'GET',
+            path: '/captains',
+            config: {
+                description: "Gets all captains"
+            },
+            handler: async (rqeuest, h) => {
+                var players = await Player.query().withGraphFetched('roles');
+                for (var i = players.length-1; i >= 0; i--) {
+                    if (!players[i].roles.team_captain) {
+                        players.splice(i, 1);
+                    }
+                }
+                return players;
+            }
+        },
+
+        {
+            method: 'GET',
             path: '/hosts',
             config: {
                 description: "Gets all hosts"
             },
             handler: async (rqeuest, h) => {
                 var players = await Player.query().withGraphFetched('roles');
-                for (var i = 0; i < players; i++) {
-                    if (!players.roles.possible_host) {
+                for (var i = players.length-1; i >= 0; i--) {
+                    if (!players[i].roles.possible_host) {
                         players.splice(i, 1);
                     }
                 }
-                console.log(players);
                 return players;
+            }
+        },
+
+        {
+            method: 'GET',
+            path: '/morestats/{username}/{game_id}',
+            config: {
+                description: "Gets specific stats for a certain player in a certain game"
+            },
+            handler: async (request, h) => {
+                game = await Game.query().where('id', request.params.game_id).withGraphFetched('players').first();
+                actions = await Hit.query().where('game_id', request.params.game_id);
+                attackDictionary = {};
+                attackedDictionary = {};
+                maxKillStreak = 0;
+                killStreak = 0;
+                hits = 0;
+                for (var i = 0; i < game.players.length; i++) {
+                    if (game.players[i].username != request.params.username) {
+                        attackDictionary[game.players[i].username] = 0;
+                        attackedDictionary[game.players[i].username] = 0;
+                    }
+                }
+                for (var j = 0; j < actions.length; j++) {
+                    if (actions[j].person_shooting == request.params.username) {
+                        attackDictionary[actions[j].person_hit]++;
+                        hits++;
+                        killStreak++;
+                    }
+                    else if (actions[j].person_hit == request.params.username) {
+                        attackedDictionary[actions[j].person_shooting]++;
+                        if (killStreak > maxKillStreak) {
+                            maxKillStreak = killStreak;
+                        }
+                        killStreak = 0;
+                    }
+                }
+                if (killStreak > maxKillStreak) {
+                    maxKillStreak = killStreak;
+                }
+                return {hits: hits, attackDictionary: attackDictionary, attackedDictionary: attackedDictionary, killStreak: maxKillStreak};
             }
         }
     ]);

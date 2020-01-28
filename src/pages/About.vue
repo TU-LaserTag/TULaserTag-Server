@@ -21,7 +21,9 @@
         <br><br><br>
         <div class="text-center"><h5 style="font-size:25px; color:#61578b">Contact us:</h5></div>
         <v-card>
+            <br>
             <p class="text-center" style="font-size:20px; margin:10px">If you have questions, please contact the help desk at Taylor University, which has a link in the upper corner of this page.</p>
+            <br>
         </v-card>
     </v-container>
 

@@ -34,7 +34,10 @@ export default {
             if (!to.params.id) {
                 this.$router.push({ name: 'scores', params: {id: -1}});
             }
+            // if they do not want a table, take it out
             if (to.params.id == -1) this.table = false;
+            // then set the id to the requested id
+            
             this.selectedGameId = parseInt(to.params.id);
         }
     },
@@ -47,8 +50,15 @@ export default {
     },
     mounted: function() {
         if (this.$route.params.id != 0) {
+            if (this.$route.params.id != -1) {
+                this.table = true;
+                this.$axios.get(`game/info/${parseInt(this.$route.params.id)}`).then((response) => {
+                    if (response.data.game.style == "team") {
+                        this.teams = true;
+                    }
+                })
+            }
             this.selectedGameId = parseInt(this.$route.params.id);
-            if (this.$route.params.id != -1) this.table = true;
         }
         else this.$router.push({ name: 'scores', params: {id: -1}})
     },

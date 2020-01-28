@@ -1,6 +1,6 @@
 <template>
     <div>
-        <v-card>
+        <v-card position=absolute>
             <v-card-title>
                 <v-row>
                     <v-col cols=4>
