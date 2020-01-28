@@ -763,6 +763,7 @@ const init = async () => {
                 var opposingTeamName = "";
                 var teamColor = ""; 
                 var teamName = "";
+                var teamId = 0;
 
                 //searches teams and players involved in the game
                 for (var i = 0; i < gameStats.teams.length; i++) {
@@ -775,6 +776,7 @@ const init = async () => {
                         else if (gameStats.teams[i].players[j].username == request.payload.username) {
                             teamName = gameStats.teams[i].name;
                             teamColor = gameStats.teams[i].color;
+                            teamId = gameStats.teams[i].id;
                         }
                     }
                 }
@@ -829,8 +831,10 @@ const init = async () => {
                 if (die) pointIncrease = 15;
                 else if (request.payload.long_shot) pointIncrease = 10;
 
-                // update shooter's point total
+                // update shooter's point total and the shooter's team total
+                const contest = await Contest.query().where('game_id', request.payload.game_id).andWhere('team_id', teamId);
                 await Stats.query().patch({points: currentPoints + pointIncrease}).where('game_id', request.payload.game_id).andWhere('player_username', hitman);
+                await Contest.query().patch({points: contest.points + pointIncrease}).where('game_id', request.payload.game_id).andWhere('team_id', teamId);
 
                 // update the user's statistics to reflect the hit
                 await Stats.query().patch({remaining_lives: livesLeft-1, alive: !die}).where('game_id', request.payload.game_id).andWhere('player_username', request.payload.username);
@@ -953,7 +957,7 @@ const init = async () => {
 
         {
             method: 'GET',
-            path: '/gameover/{username}/{game_id}',
+            path: '/gameover/{username}/{game_id}/{team_id?}',
             config: {
                 description: 'The path called to check when the game is over to check for the winner, stats, etc.'
             },
@@ -965,7 +969,10 @@ const init = async () => {
                 if (gameStats.winners) {
                     // get the player stats
                     const playerStats = await Stats.query().where('player_username', request.params.username).andWhere('game_id', request.params.game_id).first().withGraphFetched('killed');
-
+                    if (request.params.team_id) {
+                        const contest = await Contest.query().where('game_id', request.params.game_id).andWhere('team_id', request.params.team_id).first();
+                        return {gameOver: true, winners: gameStats.winners, gameStats: playerStats, teamPoints: contest.points};
+                    }
                     // return the facts
                     return {gameOver: true, winners: gameStats.winners, gameStats: playerStats};
                 }
@@ -994,35 +1001,58 @@ const init = async () => {
                     // variables to hold maximum amount of points in the game and the people who have the number of points
                     var maxPoints = -1;
                     var winners = [];
-
-                    // loop through the players
-                    for (var j = 0; j < gameStats.stats.length; j++) {
-                        // if a player has more points than the current max
-                        if (gameStats.stats[j].points > maxPoints) {
-                            // he is a winner and the maxpoints is now his total
-                            winners = [gameStats.stats[j].player_username];
-                            maxPoints = gameStats.stats[j].points;
+                    if (!request.params.team_id) {
+                        // solo match - loop through the players
+                        for (var j = 0; j < gameStats.stats.length; j++) {
+                            // if a player has more points than the current max
+                            if (gameStats.stats[j].points > maxPoints) {
+                                // he is a winner and the maxpoints is now his total
+                                winners = [gameStats.stats[j].player_username];
+                                maxPoints = gameStats.stats[j].points;
+                            }
+                            // if a players points are the same as the max points
+                            else if (gameStats.stats[j].points == maxPoints) {
+                                // we include him as a winner
+                                winners.push(gameStats.stats[j].player_username);
+                            }
                         }
-                        // if a players points are the same as the max points
-                        else if (gameStats.stats[j].points == maxPoints) {
-                            // we include him as a winner
-                            winners.push(gameStats.stats[j].player_username);
+                    }
+                    
+                    else {
+                        // teams - need to choose a winner from the teams
+                        teams = await Contest.query().where('game_id', request.params.game_id);
+                        
+                        for (var k = 0; k < teams.length; k++) {
+                            if (teams[k].points > maxPoints) {
+                                winners = [teams[k].team_id];
+                                maxPoints = teams[k].points;
+                            }
+                            else if (teams[k].points == maxPoints) {
+                                winners.push(teams[k].team_id);
+                            }
                         }
-                    };
 
+                        for (var m = 0; m < winners.length; m++) {
+                            team = await Team.query().where('id', winners[m]).first();
+                            winners[m] = team.name;
+                        }
+                    }
                     // updates game with winner(s)
                     await Game.query().patch({winners: winners}).where('id', request.params.game_id);
 
                     // get the player stats
                     const playerStats = await Stats.query().where('player_username', request.params.username).andWhere('game_id', request.params.game_id).first().withGraphFetched('killed');
-
                     // return the facts
+                    if (request.params.team_id) {
+                        const contest = await Contest.query().where('game_id', request.params.game_id).andWhere('team_id', request.params.team_id).first();
+                        return {gameOver: true, winners: winners, gameStats: playerStats, teamPoints: contest.points};
+                    }
                     return {gameOver: true, winners: winners, gameStats: playerStats};
                 }
             }
         },
 
-        { // TODO: change to make leagues work
+        {
             method: 'POST',
             path: '/create/team',
             config: {
@@ -1037,9 +1067,11 @@ const init = async () => {
                 }
             },
             handler: async (request, h) => {
+                // if there is no team captain colors will be null
                 if (!request.payload.captain) {
                     return await Team.query().insert({name: request.payload.name, captain: request.payload.captain, primaryColor: request.payload.primaryColor, secondaryColor: request.payload.secondaryColor, used: true});
                 }
+                // otherwise ensure valid hex
                 return await Team.query().insert({name: request.payload.name, captain: request.payload.captain, primaryColor: request.payload.primaryColor.toLowerCase(), secondaryColor: request.payload.secondaryColor.toLowerCase(), used: true});
             }
         },
@@ -1076,6 +1108,8 @@ const init = async () => {
                 for (var i = 0; i < request.payload.length; i++) {
                     var color_name = request.payload[i].color_name;
                     var color = request.payload[i].color;
+
+                    // ensure no duplicate colors
                     if (!color) {
                         color_option = color_options.pop();
                         color_name = color_option.name;
@@ -1094,11 +1128,12 @@ const init = async () => {
 
                         var team = await Team.query().patchAndFetchById(request.payload[i].team_id, {name: request.payload[i].name, color: color, color_name: color_name});
                         
+                        // also update arrays
                         final_team_array.push(team);
                         color_array.push(color_name);
                     }
 
-                    // if the team does not exist
+                    // if the team does not exist place everything into database and update arrays
                     else {
                         new_team_array.push({name: request.payload[i].name, color: color, color_name: color_name});
                         color_array.push(color_name);
@@ -1134,9 +1169,11 @@ const init = async () => {
                 }
             },
             handler: async (request, h) => {
+                // if there is no captain, colors should be null
                 if (!request.payload.captain) {
                     return await Team.query().patch({name: request.payload.name, captain: request.payload.captain, primaryColor: request.payload.primaryColor, secondaryColor: request.payload.secondaryColor, used: true}).where('id', request.params.id);
                 }
+                // otherwise change colors into valid hex
                 return await Team.query().patch({name: request.payload.name, captain: request.payload.captain, primaryColor: request.payload.primaryColor.toLowerCase(), secondaryColor: request.payload.secondaryColor.toLowerCase(), used: true}).where('id', request.params.id);
             }
         },
@@ -1154,6 +1191,7 @@ const init = async () => {
                 for (var i = 0; i < team.players.length; i++) {
                     usernames.push(team.players[i].username);
                 }
+                // if a username is on the team, take it out
                 for (var j = players.length-1; j >= 0; j--) {
                     if (usernames.includes(players[j].username)) {
                         players.splice(j, 1);
@@ -1167,7 +1205,7 @@ const init = async () => {
             method: 'GET',
             path: '/teams/notingame/{id}',
             config: {
-                description: 'Gets all players not on a certain team'
+                description: 'Gets all teams not in a certain game'
             },
             handler: async (request, h) => {
                 const teams = await Team.query().where('used', true);
@@ -1176,6 +1214,7 @@ const init = async () => {
                 for (var i = 0; i < game.teams.length; i++) {
                     names.push(game.teams[i].name);
                 }
+                // if a team name is in a game, take it out
                 for (var j = teams.length-1; j >= 0; j--) {
                     if (names.includes(teams[j].name)) {
                         teams.splice(j, 1);
@@ -1449,6 +1488,7 @@ const init = async () => {
             handler: async (request, h) => {
                 guns = await Gun.query();
                 duplicateGun = await Gun.query().where('mac_address', request.payload.mac_address);
+                // checks to ensure each mac address is unique
                 if (duplicateGun.length > 0) {
                     return {ok: false, message: "Duplicate Mac Address"}
                 }
@@ -1461,7 +1501,7 @@ const init = async () => {
             method: 'PATCH',
             path: '/change/guns',
             config: {
-                description: 'Edits guns for use',
+                description: 'Swaps guns for use',
                 validate: {
                     payload: Joi.array().items(
                         Joi.object({
@@ -1472,16 +1512,20 @@ const init = async () => {
                     )
                 }
             },
-            handler: async (request, h) => {
+            handler: async (request, h) => 
+            {
                 list_of_guns = [];
                 guns = await Gun.query();
+                // creates temporary guns
                 for (var h = 0; h < request.payload.length; h++) {
                     await Gun.query().insert({id: guns.length+h+1, mac_address: `TEMP${h}`});
                 }
+                // sends the players to the temporary guns and swaps the mac addresses of the guns - players cannot swap directly, as the order of actions would cause all players to be assigned to one of the guns
                 for (var i = 0; i < request.payload.length; i++) {
                     await Stats.query().patch({gun_id: guns.length+i+1}).where('gun_id', request.payload[i].current_gun_id);
                     await Gun.query().patch({mac_address: request.payload[i].mac_address}).where('id', request.payload[i].new_gun_id);
                 }
+                // finishes swapping the players from one gun to the other, and deletes temporary guns
                 for (var j = 0; j < request.payload.length; j++) {
                     await Stats.query().patch({gun_id: request.payload[j].new_gun_id}).where('gun_id', guns.length+j+1);
                     await Gun.query().delete().where('id', guns.length+j+1);
@@ -1591,6 +1635,7 @@ const init = async () => {
             handler: async (request, h) => {
                 const game = await Game.query().where('id', request.params.game_id).withGraphFetched('stats.[killed, gun]').withGraphFetched('teams.players').withGraphFetched('announcement').first();
                 time = "";
+                // if the time remaining exists, return it
                 if (game.date == createDate().date && game.endtime) {
                     const endtime = game.endtime;
                     const end_time_array = endtime.split(":");
@@ -1612,6 +1657,7 @@ const init = async () => {
                     if (seconds < 10) seconds = "0" + seconds
                     time = hours + ":" + minutes + ":" + seconds;
                 }
+                // otherwise the time remaining is negative and worthless
                 else {
                     time = null
                 }
@@ -1671,7 +1717,7 @@ const init = async () => {
             handler: async (request, h) => {
                 const games = await Game.query().where('locked', true).andWhere('date', createDate().date).andWhere('winners',  null);
                 time = [];
-                for (var i = 0; i < games.length; i++) {
+                for (var i = games.length-1; i >= 0; i--) {
                     const endtime = games[i].endtime;
                     const end_time_array = endtime.split(":");
                     const current_time_array = createDate().time.split(":");
@@ -1687,8 +1733,13 @@ const init = async () => {
                     if (minutes < 10) minutes = "0" + minutes
                     var seconds = time_left % 60;
                     if (seconds < 10) seconds = "0" + seconds
-                    time.push(hours + ":" + minutes + ":" + seconds);
 
+                    // if the time remaining is negative in any way, the game is no longer current
+                    if (hours < 0 || minutes < 0 || seconds < 0) {
+                        games.splice(i, 1);
+                    }
+                    // otherwise add the time as desired
+                    else time.unshift(hours + ":" + minutes + ":" + seconds);
                 }
                 return {games: games, time: time}
             }
@@ -1826,25 +1877,35 @@ const init = async () => {
                 description: "Gets specific stats for a certain player in a certain game"
             },
             handler: async (request, h) => {
+                // variables to hold statistics until we need them
                 game = await Game.query().where('id', request.params.game_id).withGraphFetched('players').first();
                 actions = await Hit.query().where('game_id', request.params.game_id);
+                // dictionaries to determine who has attacked a person the most and whom they have attacked the most
                 attackDictionary = {};
                 attackedDictionary = {};
+                // keeps track of the longest kill streak
                 maxKillStreak = 0;
                 killStreak = 0;
+                // number of hits player has registered against opponents
                 hits = 0;
+
+                // loops through players in the game 
                 for (var i = 0; i < game.players.length; i++) {
+                    // if the username is not the same, we can put it in the dictionary as a person who is an opponent
                     if (game.players[i].username != request.params.username) {
                         attackDictionary[game.players[i].username] = 0;
                         attackedDictionary[game.players[i].username] = 0;
                     }
                 }
+                // loops through actions in a game
                 for (var j = 0; j < actions.length; j++) {
+                    // if the person shooting is the person we are getting stats for, update everything accordingly
                     if (actions[j].person_shooting == request.params.username) {
                         attackDictionary[actions[j].person_hit]++;
                         hits++;
                         killStreak++;
                     }
+                    // if the person who got shot is the person we are getting stats for, update everything accordingly
                     else if (actions[j].person_hit == request.params.username) {
                         attackedDictionary[actions[j].person_shooting]++;
                         if (killStreak > maxKillStreak) {
@@ -1853,10 +1914,33 @@ const init = async () => {
                         killStreak = 0;
                     }
                 }
+                // check to ensure the latest streak is the longest
                 if (killStreak > maxKillStreak) {
                     maxKillStreak = killStreak;
                 }
-                return {hits: hits, attackDictionary: attackDictionary, attackedDictionary: attackedDictionary, killStreak: maxKillStreak};
+                // keeps track of most hits registered on a person by our player
+                maxHits = 0;
+                maxHit = "";
+                // keeps track of most hits registered against our player by a person
+                maxAmountHit = 0;
+                maxAttacker = "";
+                // loop through all players again
+                for (var k = 0; k < game.players.length; k++) {
+                    // opponent if not the same username
+                    if (game.players[k].username != request.params.username) {
+                        // if the person got hit a lot, update accordingly
+                        if (attackDictionary[game.players[k].username] > maxHits) {
+                            maxHits = attackDictionary[game.players[k].username];
+                            maxHit = game.players[k].username;
+                        }
+                        // if the person hit a lot, update accordingly
+                        if (attackedDictionary[game.players[k].username] > maxAmountHit) {
+                            maxAmountHit = attackedDictionary[game.players[k].username];
+                            maxAttacker = game.players[k].username;
+                        }
+                    }
+                }
+                return {hits: hits, maxHit: maxHit + " (" + maxHits + ")", maxAttacked: maxAttacker + " (" + maxAmountHit + ")", killStreak: maxKillStreak};
             }
         }
     ]);

@@ -37,6 +37,38 @@
                 </template>
             </v-data-table>
         </v-card>
+
+        <div>
+            <v-dialog persistent v-model="show_stats_visible" max-width=500px>
+                <v-card>
+                    <v-card-title>
+                        <v-layout justify-center>{{selectedStats.player_username}}'s Stats</v-layout>
+                    </v-card-title>
+                    <v-list-item>
+                        <v-list-item-content>Hits: {{otherStats.hits}}</v-list-item-content>
+                    </v-list-item>
+                    <v-list-item>
+                        <v-list-item-content>Max Kill Streak: {{otherStats.killStreak}}</v-list-item-content>
+                    </v-list-item>
+                    <v-list-item>
+                        <v-list-item-content>Most Hits Against: {{otherStats.maxHit}}</v-list-item-content>
+                    </v-list-item>
+                    <v-list-item>
+                        <v-list-item-content>Most Hit By: {{otherStats.maxAttacked}}</v-list-item-content>
+                    </v-list-item>
+                    <v-list-item>
+                        <v-list-item-content>K/D: {{otherStats.kd}}</v-list-item-content>
+                    </v-list-item>
+                    <v-list-item>
+                        <v-list-item-content>Hit Percentage: {{otherStats.hitPercentage}}%</v-list-item-content>
+                    </v-list-item>
+                    <v-card-actions>
+                        <v-spacer />
+                            <v-btn v-on:click="done">Done</v-btn>
+                    </v-card-actions>
+                </v-card>
+            </v-dialog>
+        </div>
     </div>
 </template>
 
@@ -56,6 +88,8 @@ export default {
     },
     data: function() {
         return {
+            selectedStats: {},
+            otherStats: {},
             solo_game_headers: [
                 {text: "Name", value: "player_username"},
                 {text: "Points", value: "points"},
@@ -69,15 +103,28 @@ export default {
             search: "",
             players: [],
             game_id: this.id,
+            lives: 0,
             name: "",
             time: "",
             winners: null,
+            show_stats_visible: false
 
         }
     },
     methods: {
         showStats(item) {
-            console.log(item);
+            this.show_stats_visible = true;
+            this.selectedStats = item;
+            this.$axios.get(`morestats/${item.player_username}/${this.game_id}`).then(response => {
+                this.otherStats = response.data;
+                this.otherStats.kd = item.killed.length/this.lives;
+                this.otherStats.hitPercentage = Math.round((response.data.hits*100/item.rounds_fired)*100)/100;
+            })
+        },
+        done() {
+            this.show_stats_visible = false;
+            this.selectedStats = {};
+            this.otherStats = {};
         },
         refresh() {
             this.setPlayers();

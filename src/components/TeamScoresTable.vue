@@ -51,10 +51,16 @@
                         <v-list-item-content>Max Kill Streak: {{otherStats.killStreak}}</v-list-item-content>
                     </v-list-item>
                     <v-list-item>
-                        <v-list-item-content>Hit Table: {{otherStats.attackDictionary}}</v-list-item-content>
+                        <v-list-item-content>Most Hits Against: {{otherStats.maxHit}}</v-list-item-content>
                     </v-list-item>
                     <v-list-item>
-                        <v-list-item-content>Hit By Table: {{otherStats.attackedDictionary}}</v-list-item-content>
+                        <v-list-item-content>Most Hit By: {{otherStats.maxAttacked}}</v-list-item-content>
+                    </v-list-item>
+                    <v-list-item>
+                        <v-list-item-content>K/D: {{otherStats.kd}}</v-list-item-content>
+                    </v-list-item>
+                    <v-list-item>
+                        <v-list-item-content>Hit Percentage: {{otherStats.hitPercentage}}%</v-list-item-content>
                     </v-list-item>
                     <v-card-actions>
                         <v-spacer />
@@ -98,6 +104,7 @@ export default {
             search: "",
             players: [],
             game_id: this.id,
+            lives: 0,
             name: "",
             time: "",
             winners: null,
@@ -110,7 +117,8 @@ export default {
             this.selectedStats = item;
             this.$axios.get(`morestats/${item.player_username}/${this.game_id}`).then(response => {
                 this.otherStats = response.data;
-                console.log(this.otherStats);
+                this.otherStats.kd = item.killed.length/this.lives;
+                this.otherStats.hitPercentage = Math.round((response.data.hits*100/item.rounds_fired)*100)/100;
             })
         },
         done() {
@@ -130,6 +138,7 @@ export default {
                 this.name = response.data.game.name;
                 this.time = response.data.time;
                 this.winners = response.data.game.winners;
+                this.lives = response.data.game.maxLives;
                 const stats = response.data.game.stats;
                 var players = [];
                 for (var i = 0; i < stats.length; i++) {

@@ -1,7 +1,7 @@
 <template>
     <div>
         <br>
-        <v-layout justify-center><p style="font-size:44px; color:#61578b">Life Together Covenant</p></v-layout>
+        <v-layout justify-center><p style="font-size:44px; color:#61578b">Laser Tag Covenant</p></v-layout>
         <br>
         <v-layout justify-right><h1>Responsibilities and Expectations for Community Life at Taylor University</h1></v-layout>
         <br>
