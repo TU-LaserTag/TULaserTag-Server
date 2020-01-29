@@ -89,7 +89,7 @@
                                         <div class="mt-12" style="font-size:30px">Time Disabled: {{time_disabled}}s</div>
                                         <v-slider max=60 min=1 v-model="time_disabled">
                                         </v-slider>
-                                        <v-checkbox class="ml-4 mr-4" color="#007476" disabled label="Pause Allowed" v-model="selectedGame.pause"></v-checkbox>
+                                        <v-checkbox class="ml-4 mr-4" color="#007476" label="Pause Allowed" v-model="selectedGame.pause"></v-checkbox>
                                     </v-col>
                                     <v-col>
                                         <v-date-picker v-if="edit_date_visible" color="#61578b" v-model="date" show-current>
@@ -314,14 +314,12 @@ export default {
     },
     methods: {
         verifyLives() {
-            const r = (!!this.selectedGame.maxLives || this.selectedGame.infiniteLives || 'Absolutely no opporunity for success');
-            console.log(r);
-            return r;
+            const validLives = (!!this.selectedGame.maxLives || this.selectedGame.infiniteLives || 'Absolutely no opporunity for success');
+            return validLives;
         },
         verifyAmmo() {
-            const r = (!!this.selectedGame.maxammo || this.selectedGame.infiniteAmmo || 'Still no opporunity for success');
-            console.log(r);
-            return r;
+            const validAmmo = (!!this.selectedGame.maxammo || this.selectedGame.infiniteAmmo || 'Still no opporunity for success');
+            return validAmmo;
         },
         decreaseTeams() {
             if (this.num_teams > 2) this.num_teams--;

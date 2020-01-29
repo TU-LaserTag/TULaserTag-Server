@@ -3,9 +3,11 @@ Server Side Laser Tag system
 
 # ToDo
 ## Overall Implementations
+* Infinite Lives and Infinite Ammo need to be implemented in server and Vue Application
 * League Play in all aspects
 * Different Styles of Play
 * Negative Points for Friendly Fire or penalties
+* Better way to communicate errors to user in Vue application
 * Visual improvements as desired
 * Complexity as desired
 * Communication between players, admins, team captains using messaging system
@@ -14,19 +16,24 @@ Server Side Laser Tag system
 * Assassin - each person has a target they must shoot
 * Capture the flag - multiple teams with one flag to catch
 
+
 # State of each part of project and notes for possible future improvements
 ## Server
 * Add databases as needed - add file into models section and into db.js as required
-* Add in League Assignment Table to make Many to Many relationship between Team and League tables
 * Add columns in databases as needed
 * All handler functions in db.js thoroughly tested with laser guns
 * Add in appropriate handlers for league play
-* Add handlers as needed
+* Add other handlers as needed
 * Remove unnecessary handlers
+* Server information:
+    * Username: lasertagger
+    * Password: GetBlasted?
+
 ## Vue Application
 ### Home
 * More aesthetically pleasing
 * Add links as needed
+* Add implementation to see if a game is paused or not
 ### Scores
 * Add to More Stats icon
     * Battery Life of Arduino
@@ -34,6 +41,7 @@ Server Side Laser Tag system
     * Rate of firing to time in game
     * Long and Short Range shots
 * Auto-refresher
+* Implementation if a game is paused
 * Add names of guns to database, and place those in table in place of Mac Address of Arduino
 ### LTC
 * None needed - improve as desired

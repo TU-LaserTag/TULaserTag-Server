@@ -17,6 +17,7 @@ const Player = require('./models/Player');
 const Team = require('./models/Team');
 const Stats = require('./models/Stats');
 const League = require('./models/League');
+const LeagueAssignment = require('./models/LeagueAssignment');
 const Assignment = require('./models/Assignment');
 const Contest = require('./models/Contest');
 const Individual = require('./models/Individual');
@@ -994,7 +995,7 @@ const init = async () => {
                 // if the clock has not expired yet, return without calculating anything
                 if (current_date.date < gameStats.date || ((end_secs >= current_secs) && (current_date.date == gameStats.date))) {
                     // FUTURE TODO: put code in to change wait time until function is called again to check on game results
-                    return {gameOver: false};
+                    return {gameOver: false, paused: Boolean(gameStats.paused)};
                 }
                 // finds winner(s) if game has ended without one
                 else {
@@ -1234,6 +1235,7 @@ const init = async () => {
                 team_id = request.params.id;
                 await Contest.query().delete().where('team_id', team_id);
                 await Assignment.query().delete().where('team_id', team_id);
+                await LeagueAssignment.query().delete().where('team_id', team_id);
                 await Team.query().delete().where('id', team_id);
                 const teams = await Team.query().where('used', true);
                 return teams;
@@ -1723,7 +1725,7 @@ const init = async () => {
                     const current_time_array = createDate().time.split(":");
                     var time_left = 0
                     for (var j = 0; j < 3; j++) {
-                        //calculates remaining time in seconds until game starts; starts with seconds and goes up to hours
+                        //calculates remaining time in seconds until game ends; starts with seconds and goes up to hours
                         time_left += (Math.pow(60, j))*(Number(end_time_array[2-j]) - Number(current_time_array[2-j]));
                     }
                     // convert back to HH:MM:SS
@@ -1941,6 +1943,196 @@ const init = async () => {
                     }
                 }
                 return {hits: hits, maxHit: maxHit + " (" + maxHits + ")", maxAttacked: maxAttacker + " (" + maxAmountHit + ")", killStreak: maxKillStreak};
+            }
+        },
+
+        {
+            method: 'POST',
+            path: '/pause/{game_id}',
+            config: {
+                description: 'Pauses a match'
+            },
+            handler: async (request, h) => {
+                game = await Game.query().where('id', request.params.game_id).first();
+                const endtime = game.endtime;
+                const end_time_array = endtime.split(":");
+                const current_time_array = createDate().time.split(":");
+                var time_left = 0
+                for (var j = 0; j < 3; j++) {
+                    //calculates remaining time in seconds until game ends; starts with seconds and goes up to hours
+                    time_left += (Math.pow(60, j))*(Number(end_time_array[2-j]) - Number(current_time_array[2-j]));
+                }
+                await Game.query().patch({paused: time_left, endtime: null}).where('id', request.params.game_id);
+                return {ok: true};
+            }
+        },
+
+        {
+            method: 'POST',
+            path: '/unpause/{game_id}/{countdown}',
+            config: {
+                description: 'Unpauses a match with a countdown'
+            },
+            handler: async (request, h) => {
+                date = createDate();
+                game = await Game.query().where('id', request.params.game_id).first();
+                
+                current_time_array = date.time.split(":");
+                
+                remaining_time = Number(game.paused);
+                // convert back to hours, minutes, and seconds
+                var hours = Math.floor(remaining_time / 3600);
+                remaining_time %= 3600;
+                var minutes = Math.floor(remaining_time/60);
+                if (minutes < 10) minutes = "0" + minutes
+                var seconds = remaining_time % 60;
+                if (seconds < 10) seconds = "0" + seconds
+                var time_left = [hours, minutes, seconds];
+                
+                end_time_string = "";
+
+                for (var i = 0; i < 2; i++) {
+                    // calculates end time of game in hours and minutes
+                    end_time_string = end_time_string + (Number(current_time_array[i]) + Number(time_left[i])) + ":";
+                }
+
+                //calculates seconds for start and end of games with a variable runoff
+                countdown_array = date.time.split(":");
+                countdown_array[2] = Number(countdown_array[2]) + Number(request.params.countdown);
+                end_time_string = end_time_string + (Number(current_time_array[2]) + Number(time_left[2]) + Number(request.params.countdown));
+                
+                //updates game object
+                return await Game.query().patch({endtime: end_time_string, paused: countdown_array[0] + ":" + countdown_array[1] + ":" + countdown_array[2]}).where('id',request.params.game_id);
+            }
+        },
+
+        {
+            method: 'GET',
+            path: '/checkpause/{game_id}',
+            config: {
+                description: 'Checks to see if game has been unpaused yet'
+            },
+            handler: async (request, h) => {
+                game = await Game.query().where('id', request.params.game_id).first();
+                if (!Boolean(game.endtime)) {
+                    return {paused: true}
+                }
+                var time_left = 0;
+                var game_length = 0;
+                start_time_array = game.paused.split(":");
+                end_time_array = game.endtime.split(":");
+                current_time_array = createDate().time.split(":");
+                for (var m = 0; m < 3; m++) {
+                    //calculates remaining time in seconds until game starts; starts with seconds and goes up to hours
+                    time_left += (Math.pow(60, m))*(Number(start_time_array[2-m]) - Number(current_time_array[2-m]));
+                    //calculates game length using same method
+                    game_length += (Math.pow(60, m))*(Number(end_time_array[2-m]) - Number(start_time_array[2-m]));
+                }
+                return {paused: false, countdown: time_left, game_length: game_length}
+            }
+        },
+
+        {
+            method: 'GET',
+            path: '/team/leagues/{id}',
+            config: {
+                description: "Gets a team and the leagues associated with it"
+            },
+            handler: async (request, h) => {
+                return await Team.query().where('id', request.params.id).first().withGraphFetched('leagues');
+            }
+        },
+
+        {
+            method: 'POST',
+            path: '/league',
+            config: {
+                description: 'Creates a league',
+                validate: {
+                    payload: Joi.object({
+                        name: Joi.string().required()
+                    })
+                }
+            },
+            handler: async (request, h) => {
+                return await League.query().insert(request.payload);
+            }
+        },
+
+        {
+            method: 'PATCH',
+            path: '/league/{id}',
+            config: {
+                description: 'Edits a league',
+                validate: {
+                    payload: Joi.object({
+                        name: Joi.string().required()
+                    })
+                }
+            },
+            handler: async (request, h) => {
+                return await League.query().patch(request.payload).where('id', request.params.id);
+            }
+        },
+
+        {
+            method: 'GET',
+            path: '/leagues',
+            config: {
+                description: 'Gets all leagues'
+            },
+            handler: async (request, h) => {
+                return await League.query().withGraphFetched('teams');
+            }
+        },
+
+        {
+            method: 'GET',
+            path: '/league/{id}',
+            config: {
+                description: 'Gets a certain league by id'
+            },
+            handler: async (request, h) => {
+                return await League.query().where('id', request.params.id).withGraphFetched('teams').first();
+            }
+        },
+
+        {
+            method: 'DELETE',
+            path: '/league/{id}',
+            config: {
+                description: "Deletes a league"
+            },
+            handler: async (request, h) => {
+                return await League.query().delete().where('id', request.params.id);
+            }
+        },
+
+        {
+            method: 'POST',
+            path: '/leagueassignment',
+            config: {
+                description: 'Assigns a team to a league',
+                validate: {
+                    payload: Joi.object({
+                        league_id: Joi.number().required(),
+                        team_id: Joi.number().required()
+                    })
+                }
+            },
+            handler: async (request, h) => {
+                return await LeagueAssignment.query().insert(request.payload);
+            }
+        },
+
+        {
+            method: 'DELETE',
+            path: '/leagueassignment/{team_id}/{league_id}',
+            config: {
+                description: 'Removes a team from a league',
+            },
+            handler: async (request, h) => {
+                return await LeagueAssignment.query().delete().where('team_id', request.params.team_id).andWhere('league_id', request.params.league_id);
             }
         }
     ]);

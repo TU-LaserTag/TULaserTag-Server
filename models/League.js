@@ -11,11 +11,15 @@ class League extends Model {
 
         return {
             teams: {
-                relation: Model.HasManyRelation,
+                relation: Model.ManyToManyRelation,
                 modelClass: Team,
                 join: {
                     from: 'league.id',
-                    to: 'team.league_id'
+                    through: {
+                        from: 'league_assignment.league_id',
+                        to: 'league_assignment.team_id'
+                    },
+                    to: 'team.id'
                 }
             }
         }

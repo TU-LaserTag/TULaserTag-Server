@@ -117,8 +117,12 @@ export default {
             this.selectedStats = item;
             this.$axios.get(`morestats/${item.player_username}/${this.game_id}`).then(response => {
                 this.otherStats = response.data;
-                this.otherStats.kd = item.killed.length/this.lives;
-                this.otherStats.hitPercentage = Math.round((response.data.hits*100/item.rounds_fired)*100)/100;
+                if (this.lives == item.remaining_lives) this.otherStats.kd = item.killed.length;
+                else {
+                    this.otherStats.kd = item.killed.length/(this.lives - item.remaining_lives);
+                }
+                if (item.rounds_fired == 0) this.otherStats.hitPercentage = 0;
+                else this.otherStats.hitPercentage = Math.round((response.data.hits*100/item.rounds_fired)*100)/100;
             })
         },
         done() {
@@ -137,6 +141,8 @@ export default {
             this.$axios.get(`game/info/${this.game_id}`).then(response => {
                 this.name = response.data.game.name;
                 this.time = response.data.time;
+                this.winners = response.data.game.winners;
+                this.lives = response.data.game.maxLives;
                 const stats = response.data.game.stats;
                 var players = [];
                 for (var i = 0; i < stats.length; i++) {

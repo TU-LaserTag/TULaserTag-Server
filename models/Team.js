@@ -9,6 +9,7 @@ class Team extends Model {
     static get relationMappings() {
         const Game = require('./Game');
         const Player = require('./Player');
+        const League = require('./League');
 
         return {
             games: {
@@ -21,6 +22,19 @@ class Team extends Model {
                         to: 'contest.game_id'
                     },
                     to: 'game.id'
+                }
+            },
+
+            leagues: {
+                relation: Model.ManyToManyRelation,
+                modelClass: League,
+                join: {
+                    from: 'team.id',
+                    through: {
+                        from: 'league_assignment.team_id',
+                        to: 'league_assignment.league_id'
+                    },
+                    to: 'league.id'
                 }
             },
 

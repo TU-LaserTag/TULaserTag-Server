@@ -36,9 +36,9 @@
                 <font color=white>Games</font>
             </v-btn>
 
-            <v-btn class=ma-2 color="#61578b" raised v-on:click="viewLeagues">
+            <!-- <v-btn class=ma-2 color="#61578b" raised v-on:click="viewLeagues">
                 <font color="white" >Leagues</font>
-            </v-btn>
+            </v-btn> -->
 
             <v-btn class=ma-2 color="#61578b" raised v-on:click="viewGuns">
                 <font color="white">guns</font>
@@ -76,14 +76,15 @@ import PlayerTable from "../components/PlayerTable";
 import TeamTable from "../components/TeamTable";
 import AnnouncementTable from "../components/AnnouncementTable";
 import GameTable from "../components/GameTable";
-import GunTable from "../components/GunTable"
+import GunTable from "../components/GunTable";
+//import LeagueTable from "../components/LeagueTable";
 export default {
-    components: {PlayerTable, TeamTable, AnnouncementTable, GameTable, GunTable},
+    components: {PlayerTable, TeamTable, AnnouncementTable, GameTable, GunTable /*, LeagueTable*/},
     data: function() {
         return {
-            signedIn: true, // CHANGE TO FALSE WHEN DONE
+            signedIn: false,
             banned: false,
-            username: "The Admin",
+            username: "",
             usernameRules: [
                 v => !!v || 'Username is required'
             ],
@@ -121,9 +122,9 @@ export default {
         viewPlayers() {
             this.table = "players"
         },
-        viewLeagues() {
-            console.log("Guns worked");
-        },
+        // viewLeagues() {
+        //     this.table = "leagues"
+        // },
         viewGuns() {
             this.table = "guns"
         },
