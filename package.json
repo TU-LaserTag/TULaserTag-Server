@@ -6,7 +6,7 @@
   "build": "vue-cli-service build",
   "lint": "vue-cli-service lint",
   "dependencies": {
-    "@hapi/hapi": "^18.4.0",
+    "@hapi/hapi": "^19.1.1",
     "@hapi/joi": "^17.0.0",
     "@mdi/font": "^4.7.95",
     "axios": "^0.19.1",
